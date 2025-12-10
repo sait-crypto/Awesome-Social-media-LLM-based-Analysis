@@ -176,7 +176,6 @@ TAGS_CONFIG = {
             "immutable": True,             
             "required": False,              
         },
-    # ==================== 可禁用标签 (immutable=false) ====================
         {
             "variable": "conference",
             "order": 11,
@@ -187,9 +186,10 @@ TAGS_CONFIG = {
             "validation": None,
             "show_in_readme": False,
             "enabled": True,
-            "immutable": False,
+            "immutable": True,
             "required": False,              
         },
+    # ==================== 可禁用标签 (immutable=false) ====================
         {
             "variable": "title_translation",
             "order": 12,

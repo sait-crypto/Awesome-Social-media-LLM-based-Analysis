@@ -19,7 +19,12 @@ class AIGenerator:
     def __init__(self):
         self.config = config_loader
         self.settings = config_loader.settings
-        self.enabled = self.settings['ai'].get('enable_ai_generation', 'true').lower() == 'true'
+        # 兼容配置项为 bool 或 str 的情况；确保得到布尔值
+        enable_val = self.settings['ai'].get('enable_ai_generation', True)
+        try:
+            self.enabled = str(enable_val).lower() == 'true'
+        except Exception:
+            self.enabled = bool(enable_val)
         self.api_key = self._get_api_key()
         self.api_url = "https://api.deepseek.com/v1/chat/completions"
         self.max_retries = 3
@@ -28,9 +33,9 @@ class AIGenerator:
     def _get_api_key(self) -> Optional[str]:
         """获取API密钥"""
         # 首先尝试从环境变量获取
-        api_key = os.environ.get('DEEPSEEK_API', '')
+        api_key = os.environ.get('DEEPSEEK_API')
         if api_key:
-            return api_key
+            return str(api_key).strip()
         
         # 尝试从本地文件获取
         api_key_path = self.settings['ai'].get('deepseek_api_key_path', '')
@@ -46,109 +51,151 @@ class AIGenerator:
     
     def is_available(self) -> bool:
         """检查AI生成是否可用"""
-        return self.enabled and self.api_key is not None
+        # api_key 需要为非空字符串才能视为可用
+        return bool(self.enabled) and bool(self.api_key)
     
-    def generate_title_translation(self, title: str, abstract: str = "") -> str:
+    def generate_title_translation(self, paper: Paper) -> str:
         """生成标题翻译"""
         if not self.is_available():
             return ""
-        
+        category_name = self._get_category_name(paper.category)
         prompt = f"""请将以下学术论文标题翻译成中文：
 
-英文标题: {title}
-
+英文标题: {paper.title}
+论文分类（供参考）: {category_name}
 请提供准确、专业的中文翻译，保持学术风格。"""
         
-        if abstract:
-            prompt += f"\n\n论文摘要（供参考）:\n{abstract}"
-        
+        if paper.abstract:
+            prompt += f"\n论文摘要（供参考）:\n{paper.abstract}"
+        if paper.summary_motivation and (not str(paper.summary_motivation).startswith("[AI generated]")):
+            prompt += f"\n论文动机（供参考）:\n{paper.summary_motivation}"
+        if paper.summary_innovation and (not str(paper.summary_innovation).startswith("[AI generated]")):
+            prompt += f"\n论文创新点（供参考）:\n{paper.summary_innovation}"
+        if paper.summary_method and (not str(paper.summary_method).startswith("[AI generated]")):
+            prompt += f"\n论文方法（供参考）:\n{paper.summary_method}"
+        if paper.summary_conclusion and (not str(paper.summary_conclusion).startswith("[AI generated]")):
+            prompt += f"\n论文结论（供参考）:\n{paper.summary_conclusion}"
+        if paper.summary_limitation and (not str(paper.summary_limitation).startswith("[AI generated]")):
+            prompt += f"\n论文局限性（供参考）:\n{paper.summary_limitation}"
         response = self._call_api(prompt, max_tokens=100)
         if response:
             return f"[AI generated] {response.strip()}"
         return ""
     
-    def generate_analogy_summary(self, title: str, abstract: str, category: str) -> str:
+    def generate_analogy_summary(self, paper: Paper) -> str:
         """生成类比总结"""
         if not self.is_available():
             return ""
         
-        category_name = self._get_category_name(category)
+        category_name = self._get_category_name(paper.category)
         
         prompt = f"""请为以下论文生成一个简洁的类比总结（一句话）：
 
-论文标题: {title}
+论文标题: {paper.title}
 论文分类: {category_name}
-论文摘要: {abstract}
 
 要求：
-1. 用一句话概括论文的核心贡献
-2. 可以适当使用比喻或类比
+1. 用一句话概括方法的核心
+2. 适当使用比喻或类比
 3. 保持学术性但易懂
 4. 长度控制在30-50字
+比如：
+推测决策：边等边猜，猜对血赚，猜错不亏
+群体智慧：决策小组模式
+一个封闭的新闻传播仿真ABM系统，扮演四种角色，模拟假新闻形成过程
 
 请直接给出总结，不要添加额外说明。"""
+        if paper.abstract:
+            prompt += f"\n论文摘要:\n{paper.abstract}"
+        if paper.summary_motivation and (not str(paper.summary_motivation).startswith("[AI generated]")):
+            prompt += f"\n论文动机:\n{paper.summary_motivation}"
+        if paper.summary_innovation and (not str(paper.summary_innovation).startswith("[AI generated]")):
+            prompt += f"\n论文创新点:\n{paper.summary_innovation}"
+        if paper.summary_method and (not str(paper.summary_method).startswith("[AI generated]")):
+            prompt += f"\n论文方法:\n{paper.summary_method}"
+        if paper.summary_conclusion and (not str(paper.summary_conclusion).startswith("[AI generated]")):
+            prompt += f"\n论文结论:\n{paper.summary_conclusion}"
+        if paper.summary_limitation and (not str(paper.summary_limitation).startswith("[AI generated]")):
+            prompt += f"\n论文局限性:\n{paper.summary_limitation}"
         
         response = self._call_api(prompt, max_tokens=100)
         if response:
             return f"[AI generated] {response.strip()}"
         return ""
     
-    def generate_summary_fields(self, paper: Paper) -> Dict[str, str]:
+    def generate_summary_fields(self, paper: Paper, field: str) -> str:
         """生成一句话总结的各个字段"""
         if not self.is_available():
-            return {}
+            return ""
         
+        category_name = self._get_category_name(paper.category)
         # 准备论文信息
         paper_info = f"""
 论文标题: {paper.title}
-论文分类: {self._get_category_name(paper.category)}
-论文摘要: {paper.abstract}
+论文分类: {category_name}
 """
-        
+        if paper.abstract:
+            paper_info += f"\n论文摘要:\n{paper.abstract}"
+        if paper.summary_motivation and (not str(paper.summary_motivation).startswith("[AI generated]")):
+            paper_info += f"\n论文动机:\n{paper.summary_motivation}"
+        if paper.summary_innovation and (not str(paper.summary_innovation).startswith("[AI generated]")):
+            paper_info += f"\n论文创新点:\n{paper.summary_innovation}"
+        if paper.summary_method and (not str(paper.summary_method).startswith("[AI generated]")):
+            paper_info += f"\n论文方法:\n{paper.summary_method}"
+        if paper.summary_conclusion and (not str(paper.summary_conclusion).startswith("[AI generated]")):
+            paper_info += f"\n论文结论:\n{paper.summary_conclusion}"
+        if paper.summary_limitation and (not str(paper.summary_limitation).startswith("[AI generated]")):
+            paper_info += f"\n论文局限性:\n{paper.summary_limitation}"
+
         # 生成各个字段
         fields = {}
         
         # 1. 目标/动机
         motivation_prompt = f"""{paper_info}
 
-请总结这篇论文的研究目标或动机（50字以内）："""
-        motivation = self._call_api(motivation_prompt, max_tokens=80)
-        if motivation:
-            fields['summary_motivation'] = f"[AI generated] {motivation.strip()}"
+请总结这篇论文的研究目标或动机（40字以内）："""
+        if  field == 'summary_motivation':
+            motivation = self._call_api(motivation_prompt, max_tokens=80)
+            if motivation:
+                return f"[AI generated] {motivation.strip()}"
         
         # 2. 创新点
         innovation_prompt = f"""{paper_info}
 
-请总结这篇论文的主要创新点（50字以内）："""
-        innovation = self._call_api(innovation_prompt, max_tokens=80)
-        if innovation:
-            fields['summary_innovation'] = f"[AI generated] {innovation.strip()}"
+请总结这篇论文的主要创新点（40字以内）："""
+        if field == 'summary_innovation':
+            innovation = self._call_api(innovation_prompt, max_tokens=80)
+            if innovation:
+                return f"[AI generated] {innovation.strip()}"
         
         # 3. 方法精炼
         method_prompt = f"""{paper_info}
 
-请精炼总结这篇论文的核心方法（50字以内）："""
-        method = self._call_api(method_prompt, max_tokens=80)
-        if method:
-            fields['summary_method'] = f"[AI generated] {method.strip()}"
+请精炼总结这篇论文的核心方法（40字以内）："""
+        if field == 'summary_method':
+            method = self._call_api(method_prompt, max_tokens=80)
+            if method:
+                return f"[AI generated] {method.strip()}"
         
         # 4. 简要结论
         conclusion_prompt = f"""{paper_info}
 
-请总结这篇论文的主要结论或成果（50字以内）："""
-        conclusion = self._call_api(conclusion_prompt, max_tokens=80)
-        if conclusion:
-            fields['summary_conclusion'] = f"[AI generated] {conclusion.strip()}"
+请总结这篇论文的主要结论或成果（40字以内）："""
+        if field == 'summary_conclusion':
+            conclusion = self._call_api(conclusion_prompt, max_tokens=80)
+            if conclusion:
+                return f"[AI generated] {conclusion.strip()}"
         
         # 5. 重要局限/展望
         limitation_prompt = f"""{paper_info}
 
 请指出这篇论文的重要局限性或未来工作展望（50字以内）："""
-        limitation = self._call_api(limitation_prompt, max_tokens=80)
-        if limitation:
-            fields['summary_limitation'] = f"[AI generated] {limitation.strip()}"
+        if field == 'summary_limitation':
+            limitation = self._call_api(limitation_prompt, max_tokens=80)
+            if limitation:
+                return f"[AI generated] {limitation.strip()}"
         
-        return fields
+        return ""
     
     def _get_category_name(self, category_unique_name: str) -> str:
         """根据唯一标识名获取分类显示名"""
@@ -206,27 +253,29 @@ class AIGenerator:
         
         enhanced_paper = Paper.from_dict(asdict(paper))
         
-        # 1. 生成标题翻译（如果为空）
-        if not enhanced_paper.title_translation or enhanced_paper.title_translation.startswith("[AI generated]"):
-            translation = self.generate_title_translation(enhanced_paper.title, enhanced_paper.abstract)
+        # 1. 生成标题翻译（如果为空或AI生成）
+        # 仅在无翻译或当前为 AI 生成时才覆盖，避免覆盖用户手动填写的翻译
+        if not enhanced_paper.title_translation or str(enhanced_paper.title_translation).startswith("[AI generated]"):
+            translation = self.generate_title_translation(enhanced_paper)
             if translation:
                 enhanced_paper.title_translation = translation
         
         # 2. 生成类比总结（如果为空）
         if not enhanced_paper.analogy_summary or enhanced_paper.analogy_summary.startswith("[AI generated]"):
             summary = self.generate_analogy_summary(
-                enhanced_paper.title,
-                enhanced_paper.abstract,
-                enhanced_paper.category
+                enhanced_paper
             )
             if summary:
                 enhanced_paper.analogy_summary = summary
         
         # 3. 生成一句话总结字段（如果为空）
-        summary_fields = self.generate_summary_fields(enhanced_paper)
-        for field, value in summary_fields.items():
+        for field in ['summary_motivation', 'summary_innovation', 'summary_method',
+                      'summary_conclusion', 'summary_limitation']:
             current_value = getattr(enhanced_paper, field, "")
-            if not current_value or current_value.startswith("[AI generated]"):
+            # 仅在字段为空或已由 AI 生成时才覆盖
+            if not current_value or str(current_value).startswith("[AI generated]"):
+                value = self.generate_summary_fields(enhanced_paper, field)
+
                 setattr(enhanced_paper, field, value)
         
         return enhanced_paper

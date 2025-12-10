@@ -1,5 +1,6 @@
 """
 项目入口2：将更新文件（excel和json）的内容更新到核心excel
+!!!!!注意：运行该脚本前请关闭核心excel文件，以免写入冲突，它不会提醒的!!!!!
 """
 import os
 import sys
