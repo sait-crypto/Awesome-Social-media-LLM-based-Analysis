@@ -371,6 +371,7 @@ class PaperSubmissionGUI:
         self.status_var.set(message)
         self.root.update_idletasks()
     
+    # ...existing code...
     def load_existing_updates(self):
         """加载现有的更新文件"""
         if os.path.exists(self.update_json_path):
@@ -379,13 +380,32 @@ class PaperSubmissionGUI:
                 if data and 'papers' in data:
                     papers_data = data['papers']
                     for paper_data in papers_data:
-                        paper = Paper.from_dict(paper_data)
+                        # 统一将读取到的字段按激活标签转换为字符串（保留 bool/int）
+                        normalized = {}
+                        for tag in self.config.get_active_tags():
+                            var = tag['variable']
+                            val = paper_data.get(var, "")
+                            if val is None:
+                                val = ""
+                            t = tag.get('type', 'string')
+                            if t == 'bool':
+                                normalized[var] = bool(val) if val not in ("", None) else False
+                            elif t == 'int':
+                                try:
+                                    normalized[var] = int(val)
+                                except Exception:
+                                    normalized[var] = 0
+                            else:
+                                normalized[var] = str(val).strip()
+                        
+                        paper = Paper.from_dict(normalized)
                         self.papers.append(paper)
                     
                     self.update_paper_list()
                     self.update_status(f"已加载 {len(self.papers)} 篇论文")
             except Exception as e:
                 messagebox.showerror("错误", f"加载更新文件失败: {e}")
+# ...existing code...
     
     def update_paper_list(self):
         """更新论文列表"""

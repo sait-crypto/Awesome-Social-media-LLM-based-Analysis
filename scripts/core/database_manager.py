@@ -175,6 +175,7 @@ class DatabaseManager:
         
         return ""  # 返回空字符串表示不加密
     
+# ...existing code...
     def get_papers_from_dataframe(self, df: pd.DataFrame) -> List[Paper]:
         """从DataFrame提取Paper对象列表"""
         papers = []
@@ -188,15 +189,25 @@ class DatabaseManager:
                 if column_name in row:
                     value = row[column_name]
                     
-                    # 处理NaN值
+                    # 处理NaN值 -> 统一规范化
                     if pd.isna(value):
                         value = ""
                     
-                    # 根据类型转换
-                    if tag['type'] == 'bool':
-                        value = bool(value) if not pd.isna(value) else False
-                    elif tag['type'] == 'int':
-                        value = int(value) if not pd.isna(value) else 0
+                    # 根据标签类型进行合理转换：
+                    # - bool/int 保持类型（尽量恢复原始语义）
+                    # - 其它全部转换为 str 并去除首尾空白
+                    t = tag.get('type', 'string')
+                    if t == 'bool':
+                        # 空字符串视为 False
+                        value = bool(value) if value not in ("", None) else False
+                    elif t == 'int':
+                        try:
+                            value = int(value) if value not in ("", None) else 0
+                        except Exception:
+                            value = 0
+                    else:
+                        # 强制转为 string
+                        value = str(value).strip() if value is not None else ""
                     
                     paper_data[tag['variable']] = value
             
@@ -205,6 +216,7 @@ class DatabaseManager:
             papers.append(paper)
         
         return papers
+# ...existing code...
     
     def get_dataframe_from_papers(self, papers: List[Paper]) -> pd.DataFrame:
         """从Paper对象列表创建DataFrame"""

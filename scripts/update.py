@@ -178,6 +178,7 @@ class UpdateProcessor:
         
         return papers
     
+    # ...existing code...
     def _load_papers_from_json(self) -> List[Paper]:
         """从JSON文件加载论文"""
         data = read_json_file(self.update_json_path)
@@ -187,22 +188,47 @@ class UpdateProcessor:
         papers = []
         
         # JSON格式可能是一个论文列表
+        def _normalize_dict_to_strings(raw: Dict) -> Dict:
+            normalized = {}
+            # 使用激活标签定义的变量集合，确保只保留已知字段并转换为字符串
+            for tag in self.config.get_active_tags():
+                var = tag['variable']
+                val = raw.get(var, "")
+                if val is None:
+                    val = ""
+                # 对基本类型（bool/int）保留语义，否则转为str
+                t = tag.get('type', 'string')
+                if t == 'bool':
+                    normalized[var] = bool(val) if val not in ("", None) else False
+                elif t == 'int':
+                    try:
+                        normalized[var] = int(val)
+                    except Exception:
+                        normalized[var] = 0
+                else:
+                    normalized[var] = str(val).strip()
+            return normalized
+        
         if isinstance(data, list):
             for paper_data in data:
-                paper = Paper.from_dict(paper_data)
+                norm = _normalize_dict_to_strings(paper_data)
+                paper = Paper.from_dict(norm)
                 papers.append(paper)
         elif isinstance(data, dict):
             # 或者是一个包含论文列表的对象
             if 'papers' in data and isinstance(data['papers'], list):
                 for paper_data in data['papers']:
-                    paper = Paper.from_dict(paper_data)
+                    norm = _normalize_dict_to_strings(paper_data)
+                    paper = Paper.from_dict(norm)
                     papers.append(paper)
             else:
                 # 或者直接是一个论文对象
-                paper = Paper.from_dict(data)
+                norm = _normalize_dict_to_strings(data)
+                paper = Paper.from_dict(norm)
                 papers.append(paper)
         
         return papers
+# ...existing code...
     
     def _deduplicate_papers(self, papers: List[Paper]) -> List[Paper]:
         """去重论文列表（基于DOI和标题）"""
