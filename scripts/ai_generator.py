@@ -99,7 +99,8 @@ class AIGenerator:
 2. 适当使用比喻或类比
 3. 保持学术性但易懂
 4. 长度控制在30-50字
-比如：
+5. 提示词中前面标有[AI generated]的字段表示由AI生成，未经人类审核，请谨慎参考
+示例：
 推测决策：边等边猜，猜对血赚，猜错不亏
 群体智慧：决策小组模式
 一个封闭的新闻传播仿真ABM系统，扮演四种角色，模拟假新闻形成过程
@@ -130,66 +131,76 @@ class AIGenerator:
         
         category_name = self._get_category_name(paper.category)
         # 准备论文信息
-        paper_info = f"""
+        preprompt = f"""
+我在为综述写作收集论文，你需要朝着可供综述直接引用的方向，生成精悍的具体内容
+你只是总结分工的一部分，直接给出所要求内容，不要添加任何多余信息，它们由其他人生成
+提示词中前面标有[AI generated]的字段表示由AI生成，未经人类审核，请谨慎参考
+示例：
+以往研究没有考虑到假新闻存在一个形成过程（如果要求你给出动机）
+将参数优化过程迁移到自然语言空间，利用自然语言的强大能力（如果要求你给出创新点）
+蒸馏教师模型的知识到学生模型中；使用强化学习强化情感分类能力（如果要求你给出方法）
+获得了52%的识别准确率增幅（如果要求你给出结论）
+整个框架所有环节都依赖LLM的固有能力（如果要求你给出局限）
+
 论文标题: {paper.title}
 论文分类: {category_name}
 """
         if paper.abstract:
-            paper_info += f"\n论文摘要:\n{paper.abstract}"
+            preprompt += f"\n论文摘要:\n{paper.abstract}"
         if paper.summary_motivation and (not str(paper.summary_motivation).startswith("[AI generated]")):
-            paper_info += f"\n论文动机:\n{paper.summary_motivation}"
+            preprompt += f"\n论文动机:\n{paper.summary_motivation}"
         if paper.summary_innovation and (not str(paper.summary_innovation).startswith("[AI generated]")):
-            paper_info += f"\n论文创新点:\n{paper.summary_innovation}"
+            preprompt += f"\n论文创新点:\n{paper.summary_innovation}"
         if paper.summary_method and (not str(paper.summary_method).startswith("[AI generated]")):
-            paper_info += f"\n论文方法:\n{paper.summary_method}"
+            preprompt += f"\n论文方法:\n{paper.summary_method}"
         if paper.summary_conclusion and (not str(paper.summary_conclusion).startswith("[AI generated]")):
-            paper_info += f"\n论文结论:\n{paper.summary_conclusion}"
+            preprompt += f"\n论文结论:\n{paper.summary_conclusion}"
         if paper.summary_limitation and (not str(paper.summary_limitation).startswith("[AI generated]")):
-            paper_info += f"\n论文局限性:\n{paper.summary_limitation}"
+            preprompt += f"\n论文局限性:\n{paper.summary_limitation}"
 
         # 生成各个字段
         fields = {}
         
         # 1. 目标/动机
-        motivation_prompt = f"""{paper_info}
+        motivation_prompt = f"""{preprompt}
 
-请总结这篇论文的研究目标或动机（40字以内）："""
+你的分工：请总结并直接给出这篇论文的研究目标或动机（40字以内）："""
         if  field == 'summary_motivation':
             motivation = self._call_api(motivation_prompt, max_tokens=80)
             if motivation:
                 return f"[AI generated] {motivation.strip()}"
         
         # 2. 创新点
-        innovation_prompt = f"""{paper_info}
+        innovation_prompt = f"""{preprompt}
 
-请总结这篇论文的主要创新点（40字以内）："""
+你的分工：请总结并直接给出这篇论文的主要创新点，即该论文有什么值得我引用到综述里的（40字以内）："""
         if field == 'summary_innovation':
             innovation = self._call_api(innovation_prompt, max_tokens=80)
             if innovation:
                 return f"[AI generated] {innovation.strip()}"
         
         # 3. 方法精炼
-        method_prompt = f"""{paper_info}
+        method_prompt = f"""{preprompt}
 
-请精炼总结这篇论文的核心方法（40字以内）："""
+你的分工：请精炼总结并直接给出这篇论文的核心方法（40字以内）："""
         if field == 'summary_method':
             method = self._call_api(method_prompt, max_tokens=80)
             if method:
                 return f"[AI generated] {method.strip()}"
         
         # 4. 简要结论
-        conclusion_prompt = f"""{paper_info}
+        conclusion_prompt = f"""{preprompt}
 
-请总结这篇论文的主要结论或成果（40字以内）："""
+你的分工：请总结并直接给出这篇论文的主要结论或成果（40字以内）："""
         if field == 'summary_conclusion':
             conclusion = self._call_api(conclusion_prompt, max_tokens=80)
             if conclusion:
                 return f"[AI generated] {conclusion.strip()}"
         
         # 5. 重要局限/展望
-        limitation_prompt = f"""{paper_info}
+        limitation_prompt = f"""{preprompt}
 
-请指出这篇论文的重要局限性或未来工作展望（50字以内）："""
+你的分工：请总结并直接指出这篇论文的重要局限性或未来工作展望（50字以内）："""
         if field == 'summary_limitation':
             limitation = self._call_api(limitation_prompt, max_tokens=80)
             if limitation:
