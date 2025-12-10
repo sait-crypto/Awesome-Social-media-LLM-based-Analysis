@@ -149,8 +149,8 @@ class ReadmeGenerator:
         if not paper.analogy_summary:
             return ""
         
-        # 移除AI生成标记（如果有）
-        analogy = paper.analogy_summary.replace("[AI generated]", "").strip()
+        
+        analogy = paper.analogy_summary.strip()
         return escape_markdown(analogy)
     
     def _generate_summary_cell(self, paper: Paper) -> str:
@@ -158,23 +158,23 @@ class ReadmeGenerator:
         fields = []
         
         if paper.summary_motivation:
-            motivation = paper.summary_motivation.replace("[AI generated]", "").strip()
+            motivation = paper.summary_motivation.strip()
             fields.append(f"**目标/动机**: {escape_markdown(motivation)}")
         
         if paper.summary_innovation:
-            innovation = paper.summary_innovation.replace("[AI generated]", "").strip()
+            innovation = paper.summary_innovation.strip()
             fields.append(f"**创新点**: {escape_markdown(innovation)}")
         
         if paper.summary_method:
-            method = paper.summary_method.replace("[AI generated]", "").strip()
+            method = paper.summary_method.strip()
             fields.append(f"**方法精炼**: {escape_markdown(method)}")
         
         if paper.summary_conclusion:
-            conclusion = paper.summary_conclusion.replace("[AI generated]", "").strip()
+            conclusion = paper.summary_conclusion.strip()
             fields.append(f"**结论**: {escape_markdown(conclusion)}")
         
         if paper.summary_limitation:
-            limitation = paper.summary_limitation.replace("[AI generated]", "").strip()
+            limitation = paper.summary_limitation.strip()
             fields.append(f"**局限/展望**: {escape_markdown(limitation)}")
         
         if not fields:
@@ -239,7 +239,7 @@ class ReadmeGenerator:
         # 查找并替换表格部分
         # 假设表格部分在"## Full list"之后开始
         start_marker = "## Full list"
-        end_marker = "## Acknowledgement"  # 或任何其他合适的结束标记
+        end_marker = "=====List End====="  # 或任何其他合适的结束标记
         
         start_index = content.find(start_marker)
         end_index = content.find(end_marker)
@@ -253,28 +253,29 @@ class ReadmeGenerator:
         after_tables = content[end_index:]
         
         # 在表格前添加说明
-        tables_intro = """
-> **Contributions**
->
-> If you want to add your paper or update details like conference info or code URLs, please submit a pull request. You can generate the necessary markdown for each paper by filling out `generate_item.py` and running `python generate_item.py`. We greatly appreciate your contributions. Alternatively, you can email me ([Gmail](fscnkucs@gmail.com)) the links to your paper and code, and I will add your paper to the list as soon as possible.
+#         tables_intro = """
+# > **Contributions**
+# >
+# > If you want to add your paper or update details like conference info or code URLs, please submit a pull request. You can generate the necessary markdown for each paper by filling out `generate_item.py` and running `python generate_item.py`. We greatly appreciate your contributions. Alternatively, you can email me ([Gmail](fscnkucs@gmail.com)) the links to your paper and code, and I will add your paper to the list as soon as possible.
 
----
-<p align="center">
-<img src="assets/taxonomy.png" width = "95%" alt="" align=center />
-</p>
+# ---
+# <p align="center">
+# <img src="assets/taxonomy.png" width = "95%" alt="" align=center />
+# </p>
 
-### Quick Links
-  - [Make Long CoT Short](#Make-Long-CoT-Short)
-  - [Build SLM with Strong Reasoning Ability](#Build-SLM-with-Strong-Reasoning-Ability)
-  - [Let Decoding More Efficient](#Let-Decoding-More-Efficient)
-  - [Efficient Multimodal Reasoning](#efficient-agentic-reasoning)
-  - [Efficient Agentic Reasoning](#Efficient-Agentic-Reasoning)
-  - [Evaluation and Benchmarks](#Evaluation-and-Benchmarks)
-  - [Background Papers](#Background-Papers)
-  - [Competition](#Competition)
-"""
+# ### Quick Links
+#   - [Make Long CoT Short](#Make-Long-CoT-Short)
+#   - [Build SLM with Strong Reasoning Ability](#Build-SLM-with-Strong-Reasoning-Ability)
+#   - [Let Decoding More Efficient](#Let-Decoding-More-Efficient)
+#   - [Efficient Multimodal Reasoning](#efficient-agentic-reasoning)
+#   - [Efficient Agentic Reasoning](#Efficient-Agentic-Reasoning)
+#   - [Evaluation and Benchmarks](#Evaluation-and-Benchmarks)
+#   - [Background Papers](#Background-Papers)
+#   - [Competition](#Competition)
+# """
         
-        new_content = before_tables + tables_intro + "\n" + new_tables + "\n" + after_tables
+        #new_content = before_tables + tables_intro + "\n" + new_tables + "\n" + after_tables
+        new_content = before_tables +  "\n" + new_tables + "\n" + after_tables
         
         # 写入文件
         try:
