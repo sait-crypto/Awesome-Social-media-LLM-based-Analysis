@@ -142,7 +142,7 @@ class ReadmeGenerator:
         
         title_with_link = create_hyperlink(title, paper.paper_url)
         
-        return f"{badges}{title_with_link} <br> {authors} |{date}"
+        return f"{badges}{title_with_link} <br> {authors} <br> {date}"
     
     def _generate_analogy_cell(self, paper: Paper) -> str:
         """生成类比总结单元格"""
@@ -159,23 +159,23 @@ class ReadmeGenerator:
         
         if paper.summary_motivation:
             motivation = paper.summary_motivation.strip()
-            fields.append(f"**目标/动机**: {escape_markdown(motivation)}")
+            fields.append(f"{paper.summary_motivation}: {escape_markdown(motivation)}")
         
         if paper.summary_innovation:
             innovation = paper.summary_innovation.strip()
-            fields.append(f"**创新点**: {escape_markdown(innovation)}")
+            fields.append(f"{paper.summary_innovation}: {escape_markdown(innovation)}")
         
         if paper.summary_method:
             method = paper.summary_method.strip()
-            fields.append(f"**方法精炼**: {escape_markdown(method)}")
+            fields.append(f"{paper.summary_method}: {escape_markdown(method)}")
         
         if paper.summary_conclusion:
             conclusion = paper.summary_conclusion.strip()
-            fields.append(f"**结论**: {escape_markdown(conclusion)}")
+            fields.append(f"{paper.summary_conclusion}: {escape_markdown(conclusion)}")
         
         if paper.summary_limitation:
             limitation = paper.summary_limitation.strip()
-            fields.append(f"**局限/展望**: {escape_markdown(limitation)}")
+            fields.append(f"{paper.summary_limitation}: {escape_markdown(limitation)}")
         
         if not fields:
             return ""

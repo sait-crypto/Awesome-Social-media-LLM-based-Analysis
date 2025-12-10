@@ -137,6 +137,7 @@ class AIGenerator:
 你只是总结分工的一部分，直接给出所要求内容，不要添加任何多余信息，它们由其他人生成
 提示词中前面标有[AI generated]的字段表示由AI生成，未经人类审核，请谨慎参考
 生成中英双语，先英文再中文，中文部分用括号括起来
+
 示例：
 以往研究没有考虑到假新闻存在一个形成过程（如果要求你给出动机）
 将参数优化过程迁移到自然语言空间，利用自然语言的强大能力（如果要求你给出创新点）
@@ -193,7 +194,7 @@ class AIGenerator:
         # 4. 简要结论
         conclusion_prompt = f"""{preprompt}
 
-你的分工：请总结并直接给出这篇论文的主要结论或成果（40字以内）："""
+你的分工：请总结并直接给出这篇论文的主要结论或贡献（40字以内）："""
         if field == 'summary_conclusion':
             conclusion = self._call_api(conclusion_prompt, max_tokens=80)
             if conclusion:
@@ -267,14 +268,14 @@ class AIGenerator:
         enhanced_paper = Paper.from_dict(asdict(paper))
         
         # 1. 生成标题翻译（如果为空或AI生成）
-        # 仅在无翻译或当前为 AI 生成时才覆盖，避免覆盖用户手动填写的翻译
-        if not enhanced_paper.title_translation or str(enhanced_paper.title_translation).startswith("[AI generated]"):
+        # 仅在无翻译或有标记已弃用时才覆盖，避免覆盖用户手动填写和ai已经生成的满意总结
+        if not enhanced_paper.title_translation or "[Deprecated]" in str(enhanced_paper.title_translation):
             translation = self.generate_title_translation(enhanced_paper)
             if translation:
                 enhanced_paper.title_translation = translation
         
         # 2. 生成类比总结（如果为空）
-        if not enhanced_paper.analogy_summary or enhanced_paper.analogy_summary.startswith("[AI generated]"):
+        if not enhanced_paper.analogy_summary or "[discord]" in str(enhanced_paper.analogy_summary):
             summary = self.generate_analogy_summary(
                 enhanced_paper
             )
@@ -286,7 +287,7 @@ class AIGenerator:
                       'summary_conclusion', 'summary_limitation']:
             current_value = getattr(enhanced_paper, field, "")
             # 仅在字段为空或已由 AI 生成时才覆盖
-            if not current_value or str(current_value).startswith("[AI generated]"):
+            if not current_value or "[Deprecated]" in str(current_value):
                 value = self.generate_summary_fields(enhanced_paper, field)
 
                 setattr(enhanced_paper, field, value)
