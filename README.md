@@ -1,4 +1,4 @@
-# surveyPaperCollectorPrivate
+# Awesome Social Media Analysis with LLM Method
 
 > **Contributions**
 >
@@ -28,7 +28,7 @@
   - [Background Papers](#Background-Papers)
   - [Competition](#Competition)
 
-## Full list
+## Full paper list
 
 ### Make Long CoT Short
 

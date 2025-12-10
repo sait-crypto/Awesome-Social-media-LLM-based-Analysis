@@ -237,8 +237,8 @@ class ReadmeGenerator:
         new_tables = self.generate_readme_tables()
         
         # 查找并替换表格部分
-        # 假设表格部分在"## Full list"之后开始
-        start_marker = "## Full list"
+        # 表格部分在"## Full paper list"之后开始
+        start_marker = "## Full paper list"
         end_marker = "=====List End====="  # 或任何其他合适的结束标记
         
         start_index = content.find(start_marker)
