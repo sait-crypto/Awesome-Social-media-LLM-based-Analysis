@@ -35,7 +35,8 @@ class ReadmeGenerator:
         if df is not None and not df.empty:
             df = self._truncate_translation_suffix(df)
         papers = self.db_manager.get_papers_from_dataframe(df)
-        
+        # 排除冲突条目
+        papers=[p for p in papers if p.conflict_marker==False]
         # 按分类分组
         papers_by_category = self._group_papers_by_category(papers)
         
@@ -300,8 +301,7 @@ class ReadmeGenerator:
         df = df.copy()
 
         def _truncate_val(v):
-            import pandas as _pd
-            if _pd.isna(v):
+            if pd.isna(v):
                 return ""
             try:
                 s = str(v)

@@ -340,5 +340,5 @@ def normalize_json_papers(raw_papers: List[Dict[str, Any]], config_instance) -> 
         # 规范化 category 存储为 unique_name
         # if 'category' in out:
         #     out['category'] = normalize_category_value(out.get('category', ""), config_instance)
-        # normalized_list.append(out)
+        normalized_list.append(out)
     return normalized_list

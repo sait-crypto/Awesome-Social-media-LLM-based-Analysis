@@ -272,15 +272,15 @@ class AIGenerator:
             return paper
         
         enhanced_paper = Paper.from_dict(asdict(paper))
-        
-        # 1. 生成标题翻译（如果为空或AI生成）
+
         # 仅在无翻译或有标记已弃用时才覆盖，避免覆盖用户手动填写和ai已经生成的满意总结
+        # 1. 生成标题翻译
         if not enhanced_paper.title_translation or "[Deprecated]" in str(enhanced_paper.title_translation):
             translation = self.generate_title_translation(enhanced_paper)
             if translation:
                 enhanced_paper.title_translation = translation
         
-        # 2. 生成类比总结（如果为空）
+        # 2. 生成类比总结
         if not enhanced_paper.analogy_summary or "[Deprecated]" in str(enhanced_paper.analogy_summary):
             summary = self.generate_analogy_summary(
                 enhanced_paper
@@ -288,7 +288,7 @@ class AIGenerator:
             if summary:
                 enhanced_paper.analogy_summary = summary
         
-        # 3. 生成一句话总结字段（如果为空）
+        # 3. 生成一句话总结字段
         for field in ['summary_motivation', 'summary_innovation', 'summary_method',
                       'summary_conclusion', 'summary_limitation']:
             current_value = getattr(enhanced_paper, field, "")

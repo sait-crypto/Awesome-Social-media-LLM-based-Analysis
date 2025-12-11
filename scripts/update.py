@@ -12,6 +12,7 @@ from dataclasses import asdict
 # 添加项目根目录到Python路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../'))
 
+from scripts.convert import ReadmeGenerator
 from scripts.core.config_loader import get_config_instance
 from scripts.core.database_manager import DatabaseManager
 from scripts.core.database_model import Paper, is_duplicate_paper
@@ -207,6 +208,8 @@ class UpdateProcessor:
             # 将Excel行转换为Paper对象
             for tag in self.config.get_active_tags():
                 column_name = tag['table_name']
+
+                #只处理在模版中出现的列
                 if column_name in row:
                     value = row[column_name]
                     
@@ -240,7 +243,9 @@ class UpdateProcessor:
             for tag in self.config.get_active_tags():
                 var = tag['variable']
                 val = raw.get(var, "")
-                
+                #只处理文件中出现的
+                if var not in raw:
+                    continue
                 # 处理空值
                 if val is None or (isinstance(val, (str, list, dict)) and not val):
                     normalized[var] = ""
@@ -446,7 +451,7 @@ class UpdateProcessor:
                 print(f"✓ AI生成了 {result['ai_generated']} 篇论文的内容")
             
             if result['conflicts']:
-                print(f"⚠ 发现 {len(result['conflicts'])} 处冲突需要手动处理")
+                print(f"⚠ 发现 {len(result['conflicts'])} 处冲突需要手动处理，已添加到数据库")
                 for i, conflict in enumerate(result['conflicts'], 1):
                     new_title = conflict['new'].get('title', '未知标题')[:50] if conflict['new'] else '未知标题'
                     print(f"  {i}. 冲突论文: {new_title}...")
@@ -632,7 +637,7 @@ def main():
     processor.send_notification_email(result)
     
     # 如果更新成功，重新生成README
-    if result['success'] and result['new_papers'] > 0:
+    if result['success']:  #and result['new_papers'] > 0
         print("\n重新生成README...")
         try:
             from scripts.convert import ReadmeGenerator

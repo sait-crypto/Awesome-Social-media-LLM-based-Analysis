@@ -2,7 +2,7 @@
 数据库管理器
 处理Excel数据库的读写操作
 """
-import os
+import os,sys
 import pandas as pd
 import openpyxl
 from openpyxl.styles import PatternFill, Font
@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Any, Tuple
 import shutil
 from datetime import datetime
 import warnings
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../'))
 
 # 导入配置和模型
 from scripts.core.config_loader import get_config_instance
@@ -152,16 +153,20 @@ class DatabaseManager:
             cell.font = header_font
         
         # 标记冲突行
-        if 'conflict_marker' in df.columns:
+        conflict_row_name=self.config.get_tag_field("conflict_marker","table_name")
+        if conflict_row_name in df.columns:
             conflict_fill = PatternFill(start_color="FFCCCC", end_color="FFCCCC", fill_type="solid")
             
             for idx, row in df.iterrows():
-                if row.get('conflict_marker'):
+                if row.get(conflict_row_name).strip() not in [False,0,None,"False","FALSE","false","","0"]:
                     for cell in worksheet[idx + 2]:  # +2因为标题行是1，索引从0开始
                         cell.fill = conflict_fill
-                        #如果列名是doi，就在该cell内容前加冲突标记
-                        if cell.column_letter == get_column_letter(df.columns.get_loc('doi') + 1):
+                        #如果列名是title，就在该cell内容前加冲突标记
+                        if cell.column_letter == get_column_letter(df.columns.get_loc('title') + 1):
                             cell.value = f"{row['conflict_marker']} {cell.value}"
+        else:
+            print(f"添加论文冲突格式时，发现数据库表格没有conflict_marker列")
+
                         
     
     def get_password(self) -> str:
@@ -178,8 +183,9 @@ class DatabaseManager:
                 with open(password_path, 'r', encoding='utf-8') as f:
                     password = f.read().strip()
                     return password
-            except:
-                pass
+            except Exception as e:
+                print(f"本地读取Excel密码失败{e}")
+                
         
         return ""  # 返回空字符串表示不加密
     
@@ -206,7 +212,7 @@ class DatabaseManager:
                     t = tag.get('type', 'string')
                     if t == 'bool':
                         # 空字符串视为 False
-                        value = bool(value) if value not in ("", None,"false","FALSE") else False
+                        value =True if value not in (False,0,"", None,"false","FALSE","False","0") else False
                     elif t == 'int':
                         try:
                             value = int(value) if value not in ("", None) else 0
@@ -249,16 +255,17 @@ class DatabaseManager:
         
         return df
     
+    #唯一对外接口
     def add_papers(self, new_papers: List[Paper], conflict_resolution: str = 'mark') -> Tuple[List[Paper], List[Paper]]:
         """
-        添加新论文到数据库
+        添加新论文到数据库，同时验证冲突
         
         参数:
             new_papers: 新论文列表
             conflict_resolution: 冲突解决策略 ('mark', 'skip', 'replace')
         
         返回:
-            Tuple[成功添加的论文列表, 冲突论文列表]
+            Tuple[成功添加的论文列表, 冲突论文列表（被标记后需要加入数据库的）]
         """
         # 加载现有数据库
         df = self.load_database()
@@ -266,20 +273,32 @@ class DatabaseManager:
         
         added_papers = []
         conflict_papers = []
-        
+
         for new_paper in new_papers:
+
             # 检查是否已存在（按 DOI 或 title 判断同一论文，忽略 conflict_marker）
-            is_duplicate_identity = False
+            is_same_paper = False
+            duplicate_papers = []
             conflict_with = None
-            for existing_paper in existing_papers:
-                if is_same_identity(new_paper, existing_paper):
-                    is_duplicate_identity = True
-                    conflict_with = existing_paper
-                    break
+            conflict_index = 0
             
-            if is_duplicate_identity:
-                # 如果是同一论文身份，先判断是否为“完全重复提交”
-                if is_duplicate_paper(existing_papers, new_paper):
+            # 找出所有同identity论文
+            for idx, existing_paper in enumerate(existing_papers):
+                if is_same_identity(new_paper, existing_paper):
+                    is_same_paper = True
+                    duplicate_papers.append(existing_paper)
+                    # 唯一一个最初版本
+                    if existing_paper.conflict_marker == False:
+                        conflict_with = existing_paper
+                        conflict_index = idx
+
+            if is_same_paper:
+                if conflict_with == None:
+                    print("提交时发现存在同指向论文，但无法找到最初论文，已停止写入新论文，请检查")
+                    return [], new_papers
+                
+                # 如果是同一论文身份，先判断是否为"完全重复提交"
+                if is_duplicate_paper(duplicate_papers, new_paper):
                     # 完全相同，跳过
                     print(f"论文: {new_paper.title}重复提交，跳过添加")
                     continue
@@ -287,26 +306,69 @@ class DatabaseManager:
                 # 不是完全相同，按冲突策略处理
                 if conflict_resolution == 'skip':
                     continue
+                # 完全替换
                 elif conflict_resolution == 'replace':
                     existing_papers = [p for p in existing_papers if not is_same_identity(p, new_paper)]
+                    # 这里不直接插入，而是先添加到列表末尾，稍后排序
                     existing_papers.append(new_paper)
                     added_papers.append(new_paper)
                 elif conflict_resolution == 'mark':
-                    new_paper.conflict_marker = self.conflict_marker
+                    new_paper.conflict_marker = True
                     conflict_papers.append((new_paper, conflict_with))
+                    # 不直接插入，稍后排序处理
                     existing_papers.append(new_paper)
                     added_papers.append(new_paper)
             else:
-                # 新论文，直接添加
+                # 新论文，添加到列表末尾，稍后排序
                 existing_papers.append(new_paper)
                 added_papers.append(new_paper)
+
+        # 修正的排序逻辑：
+        # 1. 首先找出所有无冲突标记的paper
+        non_conflict_papers = [p for p in existing_papers if not p.conflict_marker]
+        conflict_marked_papers = [p for p in existing_papers if p.conflict_marker]
         
-        # 排序：先按分类，再按提交时间（假设提交时间在submission_time字段）
-        existing_papers.sort(key=lambda x: (
-            x.category,
-            x.submission_time if hasattr(x, 'submission_time') and x.submission_time and x.submission_time != "" else ""
-        ), reverse=True)  # 越晚提交越靠前
+        # 2. 对无冲突标记的paper按category排序，category内部越晚提交的越靠前
+        # 需要为paper添加一个提交时间戳属性（假设为submission_time）
+        # 这里假设paper有submission_time属性，如果没有需要添加
         
+        # 按category分组排序
+        category_groups = {}
+        for paper in non_conflict_papers:
+            if paper.category not in category_groups:
+                category_groups[paper.category] = []
+            category_groups[paper.category].append(paper)
+        
+        # 每个category内部按提交时间倒序（越晚提交越靠前）
+        sorted_non_conflict = []
+        for category in sorted(category_groups.keys()):
+            papers_in_category = category_groups[category]
+            # 按提交时间倒序排序（假设有submission_time属性）
+            papers_in_category.sort(key=lambda x: x.submission_time, reverse=True)
+            sorted_non_conflict.extend(papers_in_category)
+        
+        # 3. 处理冲突标记的paper：找到最早的无冲突标的paper，放在其正上方
+        # 越晚提交的冲突标记paper越靠近这个最早的无冲突标的paper
+        
+        # 首先按提交时间对冲突标记paper排序（越晚提交越靠后，因为插入时从后往前）
+        if conflict_marked_papers:
+            # 假设有submission_time属性
+            conflict_marked_papers.sort(key=lambda x: x.submission_time)
+            
+            # 找到最早的无冲突标的paper的索引
+            if sorted_non_conflict:
+                earliest_non_conflict_index = 0  # 因为已经按category和时间排序，第一个就是最早的
+                
+                # 将冲突标记paper插入到最早无冲突标的paper的正上方
+                # 越晚提交的越靠近（所以在插入时，晚提交的应该先插入）
+                for conflict_paper in reversed(conflict_marked_papers):  # 反向遍历，晚提交的先处理
+                    sorted_non_conflict.insert(earliest_non_conflict_index, conflict_paper)
+            else:
+                # 如果没有无冲突标的paper，直接将冲突标记paper按提交时间倒序排列
+                sorted_non_conflict = sorted(conflict_marked_papers, key=lambda x: x.submission_time, reverse=True)
+        
+        existing_papers = sorted_non_conflict
+
         # 保存更新后的数据库
         df = self.get_dataframe_from_papers(existing_papers)
         password = self.get_password()
@@ -323,7 +385,7 @@ class DatabaseManager:
         df = self.load_database()
         papers = self.get_papers_from_dataframe(df)
         success = False
-        
+
         updated_papers=[]
         # 查找论文
         target_papers = [p for p in papers if is_same_identity(p, paper)]

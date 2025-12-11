@@ -260,14 +260,14 @@ TAGS_CONFIG = {
         {
             "variable": "show_in_readme",
             "order": 18,
-            "table_name": "show_in_readme",
+            "table_name": "show in readme",
             "display_name": "显示控制",
             "description": "控制论文是否在README中显示",
             "type": "bool",
             "validation": None,
             "show_in_readme": False,      # 这个标签本身不在README中显示
             "enabled": True,
-            "immutable": False,
+            "immutable": True,
             "required": False,              
         },
         {
@@ -307,6 +307,19 @@ TAGS_CONFIG = {
             "show_in_readme": False,
             "enabled": True,
             "immutable": False,
+            "required": False,              
+        },
+        {
+            "variable": "conflict_marker",
+            "order": 21,
+            "table_name": "conflict_marker",
+            "display_name": "conflict marker",
+            "description": "冲突标记",
+            "type": "bool",
+            "validation": None,
+            "show_in_readme": False,
+            "enabled": True,
+            "immutable": True,
             "required": False,              
         },
     ]

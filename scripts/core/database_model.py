@@ -8,7 +8,8 @@ from datetime import datetime
 import hashlib
 from scripts.utils import clean_doi
 from scripts.core.config_loader import get_config_instance
-
+import sys,os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../'))
 
 @dataclass
 class Paper:
@@ -40,13 +41,12 @@ class Paper:
     abstract: str = ""
     contributor: str = ""
     show_in_readme: bool = True
-    status: str = "unread"
+    status: str = "" # "" "unread" "reading" "done" "adopted"
     notes: str = ""
+    submission_time: str = ""
+    conflict_marker: bool = False  # 冲突标记
     
     # 系统字段
-    submission_time: str = ""
-    paper_id: str = ""  # 基于doi的哈希ID
-    conflict_marker: str = ""  # 冲突标记
     
     def __post_init__(self):
         """初始化后处理"""
@@ -70,11 +70,6 @@ class Paper:
                     return match.group(1)
         return doi.strip()
     
-    
-    def _generate_fallback_id(self) -> str:
-        """生成备用ID（当没有DOI时）"""
-        identifier = f"{self.title[:50]}_{self.authors[:30]}"
-        return hashlib.md5(identifier.encode()).hexdigest()[:12]
     
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
