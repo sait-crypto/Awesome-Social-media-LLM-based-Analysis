@@ -6,8 +6,8 @@ from dataclasses import dataclass, field, asdict, fields
 from typing import Dict, List, Optional,Union, Any
 from datetime import datetime
 import hashlib
-from scripts.utils import clean_doi
-from scripts.core.config_loader import get_config_instance
+from src.utils import clean_doi
+from src.core.config_loader import get_config_instance
 import sys,os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../'))
 

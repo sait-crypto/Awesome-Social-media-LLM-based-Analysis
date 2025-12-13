@@ -12,13 +12,13 @@ from dataclasses import asdict
 # 添加项目根目录到Python路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../'))
 
-from scripts.convert import ReadmeGenerator
-from scripts.core.config_loader import get_config_instance
-from scripts.core.database_manager import DatabaseManager
-from scripts.core.database_model import Paper, is_duplicate_paper
-from scripts.ai_generator import AIGenerator
-from scripts.utils import  get_current_timestamp
-from scripts.update_file_utils import get_update_file_utils
+from src.convert import ReadmeGenerator
+from src.core.config_loader import get_config_instance
+from src.core.database_manager import DatabaseManager
+from src.core.database_model import Paper, is_duplicate_paper
+from src.ai_generator import AIGenerator
+from src.utils import  get_current_timestamp
+from src.update_file_utils import get_update_file_utils
 import pandas as pd
 
 
@@ -280,7 +280,7 @@ def main():
     if result['success']:  #and result['new_papers'] > 0
         print("\n重新生成README...")
         try:
-            from scripts.convert import ReadmeGenerator
+            from src.convert import ReadmeGenerator
             generator = ReadmeGenerator()
             success = generator.update_readme_file()
             

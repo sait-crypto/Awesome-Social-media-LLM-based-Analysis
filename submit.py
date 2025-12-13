@@ -44,7 +44,7 @@ def main():
     
     # 启动图形界面
     try:
-        from scripts.submit_gui import main as gui_main
+        from src.submit_gui import main as gui_main
         gui_main()
     except ImportError as e:
         print(f"错误: 无法导入图形界面模块: {e}")

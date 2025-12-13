@@ -27,9 +27,9 @@ import pandas as pd
 from typing import List, Dict, Any, Optional,Union
 from dataclasses import asdict
 
-from scripts.core.config_loader import get_config_instance
-from scripts.core.database_model import Paper,is_same_identity, is_duplicate_paper
-from scripts.utils import (
+from src.core.config_loader import get_config_instance
+from src.core.database_model import Paper,is_same_identity, is_duplicate_paper
+from src.utils import (
     ensure_directory,
     read_json_file,
     write_json_file, 

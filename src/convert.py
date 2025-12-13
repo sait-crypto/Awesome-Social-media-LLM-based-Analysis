@@ -10,12 +10,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from core.database_manager import DatabaseManager
 from core.database_model import Paper
-from scripts.update_file_utils import get_update_file_utils
-from scripts.utils import truncate_text, format_authors, create_hyperlink, escape_markdown
+from src.update_file_utils import get_update_file_utils
+from src.utils import truncate_text, format_authors, create_hyperlink, escape_markdown
 import pandas as pd
 from typing import Dict, List
 
-from scripts.core.config_loader import get_config_instance
+from src.core.config_loader import get_config_instance
 
 
 class ReadmeGenerator:
@@ -167,23 +167,23 @@ class ReadmeGenerator:
         
         if paper.summary_motivation:
             motivation = paper.summary_motivation.strip()
-            fields.append(f"{self.config.get_tag_field('summary_motivation', 'display_name')}: {escape_markdown(motivation)}")
+            fields.append(f"[{self.config.get_tag_field('summary_motivation', 'display_name')}] {escape_markdown(motivation)}")
         
         if paper.summary_innovation:
             innovation = paper.summary_innovation.strip()
-            fields.append(f"{self.config.get_tag_field('summary_innovation', 'display_name')}: {escape_markdown(innovation)}")
+            fields.append(f"[{self.config.get_tag_field('summary_innovation', 'display_name')}] {escape_markdown(innovation)}")
         
         if paper.summary_method:
             method = paper.summary_method.strip()
-            fields.append(f"{self.config.get_tag_field('summary_method', 'display_name')}: {escape_markdown(method)}")
+            fields.append(f"[{self.config.get_tag_field('summary_method', 'display_name')}] {escape_markdown(method)}")
         
         if paper.summary_conclusion:
             conclusion = paper.summary_conclusion.strip()
-            fields.append(f"{self.config.get_tag_field('summary_conclusion', 'display_name')}: {escape_markdown(conclusion)}")
+            fields.append(f"[{self.config.get_tag_field('summary_conclusion', 'display_name')}] {escape_markdown(conclusion)}")
         
         if paper.summary_limitation:
             limitation = paper.summary_limitation.strip()
-            fields.append(f"{self.config.get_tag_field('summary_limitation', 'display_name')}: {escape_markdown(limitation)}")
+            fields.append(f"[{self.config.get_tag_field('summary_limitation', 'display_name')}] {escape_markdown(limitation)}")
         
         if not fields:
             return ""

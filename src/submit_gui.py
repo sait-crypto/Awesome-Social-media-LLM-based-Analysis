@@ -13,10 +13,10 @@ from datetime import datetime
 # 添加项目根目录到Python路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../'))
 
-from scripts.core.config_loader import get_config_instance
-from scripts.core.database_model import Paper
+from src.core.config_loader import get_config_instance
+from src.core.database_model import Paper
 
-from scripts.utils import (
+from src.utils import (
     read_json_file,
     write_json_file, 
     normalize_json_papers,

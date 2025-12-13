@@ -8,9 +8,9 @@ import requests
 from typing import Dict, List, Optional, Any
 import time
 from dataclasses import asdict
-from scripts.update_file_utils import get_update_file_utils
-from scripts.core.config_loader import get_config_instance
-from scripts.core.database_model import Paper
+from src.update_file_utils import get_update_file_utils
+from src.core.config_loader import get_config_instance
+from src.core.database_model import Paper
 
 
 class AIGenerator:
