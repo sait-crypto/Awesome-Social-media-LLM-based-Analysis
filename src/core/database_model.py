@@ -52,6 +52,9 @@ class Paper:
         # 清理DOI格式
         if self.doi:
             self.doi = self._clean_doi(self.doi)
+        # 规范化图片路径
+        if self.pipeline_image:
+            self.pipeline_image = self._normalize_pipeline_image(self.pipeline_image)
     
     def _clean_doi(self, doi: str) -> str:
         """清理DOI格式，移除URL部分"""
@@ -69,7 +72,19 @@ class Paper:
                     return match.group(1)
         return doi.strip()
     
-    
+    def _normalize_pipeline_image(self, image_path: str) -> str:
+        """规范化图片路径"""
+        if not image_path:
+            return ""
+        
+        # 获取配置
+        from src.core.config_loader import get_config_instance
+        config = get_config_instance()
+        figure_dir = config.settings['paths'].get('figure_dir', 'figures')
+        
+        # 使用utils中的函数规范化路径
+        from src.utils import normalize_figure_path
+        return normalize_figure_path(image_path, figure_dir)
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
         return asdict(self)

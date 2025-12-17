@@ -19,11 +19,12 @@ from src.core.update_file_utils import get_update_file_utils
 
 
 from src.utils import (
-
     get_current_timestamp, 
     validate_url, 
     validate_doi, 
     clean_doi,
+    validate_figure,
+    normalize_figure_path,
 )
 
 
@@ -281,6 +282,7 @@ class PaperSubmissionGUI:
                 
                 combo['values'] = category_names
                 self.category_mapping = dict(zip(category_names, category_values))
+                self.category_mapping[""] = "none"
                 
                 self.form_fields[variable] = combo
                 
@@ -669,6 +671,19 @@ class PaperSubmissionGUI:
             messagebox.showerror("错误", "项目链接格式无效")
             return None
         
+         # 验证pipeline_image
+        pipeline = paper_data.get('pipeline_image', '')
+        if pipeline:
+            fig_dir = self.settings['paths'].get('figure_dir', 'figures')
+            # 验证图片格式
+            from src.utils import validate_figure, normalize_figure_path
+            if not validate_figure(pipeline, fig_dir):
+                messagebox.showerror("错误", "Pipeline图片格式无效（仅支持常见图片格式，如jpg/png/gif等）")
+                return None
+            
+            # 规范化路径
+            paper_data['pipeline_image'] = normalize_figure_path(pipeline, fig_dir)
+        
         # 创建Paper对象
         try:
             paper = Paper.from_dict(paper_data)
@@ -687,22 +702,45 @@ class PaperSubmissionGUI:
             return None
     
     def add_paper(self):
-        """添加新论文"""
-        # 如果当前有正在编辑的论文，先保存
-        if self.current_paper_index >= 0:
-            if not self.save_current_paper():
-                return
-        # 清空表单
-        self.clear_form()
-        self.current_paper_index = -1
-        
-        # 设置默认分类（第一个启用分类）
-        categories = self.config.get_active_categories()
-        if categories and 'category' in self.form_fields:
-            first_category = categories[0]
-            self.form_fields['category'].set(first_category['name'])
-        
-        self.update_status("已清空表单，可以填写新论文")
+        """添加新论文（仅创建占位条目，不切换选择，不清空表单）"""
+        PLACEHOLDER = "to be filled in"
+
+        # 若已有占位条目，则不重复创建
+        for p in self.papers:
+            try:
+                if getattr(p, 'title', '') == PLACEHOLDER:
+                    messagebox.showinfo("提示", "已有占位论文，请在列表中选中并填写")
+                    return
+            except Exception:
+                continue
+
+        # 创建占位论文（仅为列表显示填写基本字段）
+        placeholder_data = {
+            'title': PLACEHOLDER,
+            'authors': PLACEHOLDER,
+            'category': PLACEHOLDER,
+            'doi': '',
+            'paper_url': '',
+            'project_url': '',
+        }
+        try:
+            placeholder = Paper.from_dict(placeholder_data)
+        except Exception:
+            # 回退：仅设置必需字段
+            placeholder = Paper.from_dict({'title': PLACEHOLDER, 'authors': PLACEHOLDER})
+
+        # 插入占位条目，不改变当前 selection / 表单
+        old_index = self.current_paper_index
+        self.papers.append(placeholder)
+        self.update_paper_list()
+
+        # 恢复之前的选择（若存在）
+        if old_index is not None and old_index >= 0 and old_index < len(self.papers):
+            children = self.paper_tree.get_children()
+            if children and old_index < len(children):
+                self.paper_tree.selection_set(children[old_index])
+
+        self.update_status("已创建占位论文：请在列表中选择占位项并填写信息")
     
     def save_current_paper(self):
         """保存当前论文"""

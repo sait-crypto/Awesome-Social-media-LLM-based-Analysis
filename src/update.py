@@ -227,7 +227,7 @@ class UpdateProcessor:
     
     def send_notification_email(self, result: Dict):
         """发送通知邮件（模拟）"""
-        # 在实际部署中，这里会发送邮件，请完善该部分代码
+        # 这里会发送邮件，请完善该部分代码
         # 现在只打印通知信息
         
         print("\n" + "="*50)

@@ -23,7 +23,7 @@ paper_to_json
 """
 import os
 import json
-from typing import List, Dict, Any, Optional,Union
+from typing import List, Dict, Any, Optional,Union,Tuple
 from dataclasses import asdict
 
 from src.core.config_loader import get_config_instance
@@ -93,8 +93,16 @@ class UpdateFileUtils:
             return False
         try:
             ensure_directory(os.path.dirname(filepath))
-            df.to_excel(filepath, index=False, engine='openpyxl')
-            return True
+            with pd.ExcelWriter(
+                filepath,
+                engine='openpyxl'
+            ) as writer:
+                df.to_excel(writer, index=False, sheet_name='Papers')
+                workbook = writer.book
+                worksheet = writer.sheets['Papers']
+                # 应用格式
+                self.apply_excel_formatting(workbook, worksheet, df)
+                return True
         except Exception as e:
             print(f"写入Excel文件失败 {filepath}: {e}")
             return False
@@ -220,10 +228,12 @@ class UpdateFileUtils:
         # 创建新的DataFrame
         if rows_to_keep:
             new_df = pd.DataFrame(rows_to_keep)
+            
             self.write_excel_file(filepath, new_df)
         else:
             # 如果所有行都被处理，创建空DataFrame（只包含非系统字段）
             empty_df = self.create_empty_update_file_df()
+
             self.write_excel_file(filepath, empty_df)
     
     def persist_ai_generated_to_update_files(self, papers: List[Paper]):
@@ -357,7 +367,10 @@ class UpdateFileUtils:
         non_system_tags = self.config.get_non_system_tags()
         non_system_tags.sort(key=lambda x: x['order'])
         columns = [tag['table_name'] for tag in non_system_tags]
-        return pd.DataFrame(columns=columns)
+        df= pd.DataFrame(columns=columns)
+        
+
+        return df
     
 
     def _regenerate_columns_from_tags(self,config_instance) -> List[str]:
@@ -681,6 +694,15 @@ class UpdateFileUtils:
             else:
                 # 类型转换
                 value = self._convert_value_by_type(value, tag_type)
+                
+                # 特殊处理：验证pipeline_image字段
+                if var_name == 'pipeline_image' and value:
+                    # 验证图片格式和路径
+                    from src.utils import validate_figure
+                    fig_dir = self.config.settings['paths'].get('figure_dir', 'figures')
+                    if not validate_figure(value, fig_dir):
+                        print(f"警告: 图片路径格式无效: {value}")
+                        value = ""  # 如果无效，清空
             
             paper_data[var_name] = value
         
@@ -881,7 +903,80 @@ class UpdateFileUtils:
                     return str(value)
             else:
                 return str(value).strip()
-    
+    def get_header_styles(self) -> Tuple[str, str, str]:
+        """
+        从 settings 中读取颜色配置（优先支持多种可能的key名称以兼容你的 setting_config）。
+        返回 (header_row_fill, required_header_fill, required_font_color)。
+        提供安全的默认值以避免配置缺失导致错误。
+        """
+        cfg_candidates = (
+            self.settings.get('ui'),
+            self.settings.get('visual'),
+            self.settings.get('setting_config'),
+            self.settings.get('colors'),
+            {}
+        )
+        cfg = {}
+        for c in cfg_candidates:
+            if isinstance(c, dict) and c:
+                cfg = c
+                break
+
+        header = cfg.get('header_row_fill', cfg.get('header_fill', '#D9EEFF'))
+        required = cfg.get('required_header_fill', cfg.get('required_fill', '#0B66C3'))
+        req_font = cfg.get('required_font_color', '#FFFFFF')
+        # 规范化带或不带#的颜色
+        def norm(c): return (c or '').lstrip('#')[:6].upper() if c else ''
+        return ('#' + norm(header), '#' + norm(required), '#' + norm(req_font))
+
+    def apply_excel_formatting(self, workbook, worksheet, df):
+        """对Excel应用列宽、表头格式等美化"""
+        try:
+            from openpyxl.styles import PatternFill, Font
+            from openpyxl.utils import get_column_letter
+
+        except Exception as e:
+            print( f"无法导入openpyxl依赖:{e}\n 注意如果要应用excel格式，你需要安装openpyxl依赖包")
+            return
+        # 获取样式（优先使用 df.attrs 中保存的初始化样式）
+        hs = df.attrs.get('header_styles', None) if hasattr(df, 'attrs') else None
+        if hs:
+            header_row_color = hs.get('header_row_fill', '#D9EEFF')
+            required_color = hs.get('required_header_fill', '#0B66C3')
+            required_font_color = hs.get('required_font_color', '#FFFFFF')
+        else:
+            header_row_color, required_color, required_font_color = self.get_header_styles()
+
+        header_fill = PatternFill(start_color=header_row_color.lstrip('#'), end_color=header_row_color.lstrip('#'), fill_type="solid")
+        header_font = Font(bold=True)
+        required_fill = PatternFill(start_color=required_color.lstrip('#'), end_color=required_color.lstrip('#'), fill_type="solid")
+        required_font = Font(color=required_font_color.lstrip('#'), bold=True)
+
+        # 第一行表头样式
+        for i, col in enumerate(df.columns):
+            col_letter = get_column_letter(i + 1)
+            cell = worksheet[f"{col_letter}1"]
+            cell.fill = header_fill
+            cell.font = header_font
+
+        # 对必填列的表头应用深色标注
+        required_vars = [t['table_name'] for t in self.config.get_required_tags()]
+        for i, col in enumerate(df.columns):
+            if col in required_vars:
+                col_letter = get_column_letter(i + 1)
+                cell = worksheet[f"{col_letter}1"]
+                cell.fill = required_fill
+                cell.font = required_font
+
+        # 设置列宽
+        for column in df.columns:
+            column_letter = get_column_letter(df.columns.get_loc(column) + 1)
+            max_length = max(
+                df[column].astype(str).map(len).max(),
+                len(str(column))
+            )
+            adjusted_width = min(max_length + 2, 50)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
 
 # 创建全局单例
 _update_file_utils_instance = None

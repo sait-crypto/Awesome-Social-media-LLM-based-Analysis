@@ -1,6 +1,8 @@
+
 """
 通用工具函数
 """
+import urllib.parse
 import os
 import re
 import json
@@ -90,7 +92,6 @@ def ensure_directory(path: str) -> bool:
 
 
 
-
 def truncate_text(text: str, max_length: int, ellipsis: str = "...") -> str:
     """截断文本，保留最大长度"""
     if not text:
@@ -163,16 +164,36 @@ def merge_paper_data(existing: Dict, new: Dict, prefer_new: bool = True) -> Dict
     return result
 
 
+def _escape_md_text(text: str) -> str:
+    """对 Markdown 链接文本做基础转义（中括号/反斜杠/换行）"""
+    if text is None:
+        return ""
+    s = str(text)
+    s = s.replace("\\", "\\\\")
+    s = s.replace("\n", " ")
+    s = s.replace("]", "\\]")
+    s = s.replace("[", "\\[")
+    return s
+
 def create_hyperlink(text: str, url: str) -> str:
-    """创建Markdown超链接"""
+    """
+    生成 Markdown 风格超链接： [text](url)
+    - 当 url 为空或 None 时仅返回文本
+    - 对显示文本做基础转义以避免破坏 Markdown
+    """
     if not url:
-        return text
-    
-    # 确保URL格式正确
-    if not url.startswith(('http://', 'https://')):
-        url = 'https://' + url
-    
-    return f"[{text}]({url})"
+        return _escape_md_text(text)
+    # 保证 URL 中的空格等被安全编码，但保留常见 URL 字符
+    try:
+        parsed = urllib.parse.urlsplit(url)
+        if not parsed.scheme:
+            # 若缺少 scheme，假定为 https
+            url = "https://" + url
+        # 只对 URL 的路径/查询部分做 quote，保留 :// 和主机
+        url = urllib.parse.urlunsplit(parsed._replace(path=urllib.parse.quote(parsed.path, safe="/"), query=urllib.parse.quote_plus(parsed.query, safe="=&")) )
+    except Exception:
+        url = url.replace(" ", "%20")
+    return f"[{_escape_md_text(text)}]({url})"
 
 
 def escape_markdown(text: str) -> str:
@@ -208,6 +229,119 @@ def sanitize_filename(filename: str) -> str:
     return filename
 
 
+def validate_figure(path: str, figure_dir: str) -> bool:
+    """
+    验证 pipeline 图像路径/文件名是否合法：
+    - 扩展名必须是 .jpg/.jpeg/.png
+    - 必须为相对路径，且位于 figure_dir 下（如果给的是带目录的路径）
+    - 当只给文件名时视为有效（后续会补全为 figure_dir/filename）
+    
+    注意：这里只验证格式和位置，不验证文件是否存在
+    """
+    if not path or not str(path).strip():
+        return False
+    
+    path_s = str(path).strip()
+    
+    # 检查文件扩展名
+    valid_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'}
+    ext = os.path.splitext(path_s)[1].lower()
+    if ext not in valid_extensions:
+        return False
+    
+    # 规范化路径，确保使用正斜杠
+    path_s = path_s.replace('\\', '/')
+    
+    # 如果只是文件名（不包含路径分隔符），直接返回True
+    if '/' not in path_s:
+        return True
+    
+    # 如果包含路径，检查是否在figure_dir下
+    # 规范化figure_dir
+    fig_dir_norm = figure_dir.replace('\\', '/').rstrip('/')
+    
+    # 检查路径是否以figure_dir开头
+    if not path_s.startswith(fig_dir_norm + '/'):
+        return False
+    
+    return True
 
 
+def normalize_figure_path(path: str, figure_dir: str) -> str:
+    """
+    把用户输入的图像名/路径规范为相对于仓库根的路径（使用正斜杠）。
+    - 若仅是文件名：返回 figure_dir/filename
+    - 若已有路径且以 figure_dir 开头：返回规范化的路径
+    - 若已有路径但不以 figure_dir 开头：提取文件名并放到 figure_dir 下
+    
+    注意：这里不验证文件是否存在，只做路径规范化
+    """
+    if not path or not str(path).strip():
+        return ""
+    
+    path_s = str(path).strip()
+    
+    # 统一使用正斜杠
+    path_s = path_s.replace('\\', '/')
+    fig_dir_norm = figure_dir.replace('\\', '/').rstrip('/')
+    
+    # 如果只是文件名（不包含路径分隔符），添加figure_dir前缀
+    if '/' not in path_s:
+        return f"{fig_dir_norm}/{path_s}"
+    
+    # 如果已经以figure_dir开头，直接返回规范化的路径
+    if path_s.startswith(fig_dir_norm + '/'):
+        # 确保只有一个figure_dir前缀
+        parts = path_s.split('/')
+        if parts[0] == fig_dir_norm:
+            return path_s
+        else:
+            # 如果figure_dir包含多级目录，需要特殊处理
+            return f"{fig_dir_norm}/{os.path.basename(path_s)}"
+    
+    # 其他情况：提取文件名并放到figure_dir下
+    return f"{fig_dir_norm}/{os.path.basename(path_s)}"
 
+
+def get_figure_relative_path(paper_path: str, figure_dir: str) -> str:
+    """
+    获取图片相对于README文件的路径
+    - 假设README在项目根目录
+    - paper_path是数据库中存储的路径（经过normalize_figure_path处理）
+    """
+    if not paper_path:
+        return ""
+    
+    # 统一使用正斜杠
+    paper_path = paper_path.replace('\\', '/')
+    
+    # 如果路径已经是相对路径（不以斜杠开头），直接返回
+    if not paper_path.startswith('/'):
+        return paper_path
+    
+    # 如果是绝对路径，转换为相对路径
+    # 这里简单处理，假设项目根目录是当前工作目录
+    try:
+        return os.path.relpath(paper_path, start=os.getcwd()).replace('\\', '/')
+    except:
+        # 如果转换失败，返回原路径
+        return paper_path
+
+
+def figure_exists_in_repo(figure_path: str, project_root: str = None) -> bool:
+    """
+    检查图片是否存在于仓库中
+    - figure_path: 规范化后的图片路径
+    - project_root: 项目根目录，如果为None则使用当前工作目录
+    """
+    if not figure_path:
+        return False
+    
+    if project_root is None:
+        project_root = os.getcwd()
+    
+    # 构建完整路径
+    full_path = os.path.join(project_root, figure_path)
+    
+    # 检查文件是否存在
+    return os.path.isfile(full_path)

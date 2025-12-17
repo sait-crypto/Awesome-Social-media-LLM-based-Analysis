@@ -14,51 +14,81 @@ CATEGORIES_CONFIG = {
     # 分类列表，按order排序
     "categories": [
         {
-            "unique_name": "make_cot_short",
+            "unique_name": "Hate Speech Analysis",
             "order": 0,                     # 排序顺序，0为第一个
-            "name": "Make Long CoT Short",  # 显示名称
+            "name": "Hate Speech Analysis",  # 显示名称
             "enabled": True,                # 是否启用该分类
         },
         {
-            "unique_name": "make_cot_strong",
+            "unique_name": "Sentiment Analysis",
             "order": 1,
-            "name": "Build SLM with Strong Reasoning Ability",
+            "name": "Sentiment Analysis",
             "enabled": True,
         },
         {
-            "unique_name": "efficient_decoding",
+            "unique_name": "Misinformation Analysis",
             "order": 2,
-            "name": "Let Decoding More Efficient",
+            "name": "Misinformation Analysis",
             "enabled": True,
         },
         {
-            "unique_name": "multimodal_reasoning",
+            "unique_name": "Multimodal Analysis",
             "order": 3,
-            "name": "Efficient Multimodal Reasoning",
+            "name": "Meme Analysis",
             "enabled": True,
         },
         {
-            "unique_name": "agentic_reasoning",
+            "unique_name": "Steganography Detection",
+            "order": 3,
+            "name": "Steganography Detection",
+            "enabled": True,
+        },
+        {
+            "unique_name": "Event Extraction",
+            "order": 3,
+            "name": "Event Extraction",
+            "enabled": True,
+        },
+        {
+            "unique_name": "Topic Modeling",
+            "order": 3,
+            "name": "Topic Modeling",
+            "enabled": True,
+        },
+        {
+            "unique_name": "User Opinion Mining",
             "order": 4,
-            "name": "Efficient Agentic Reasoning",
+            "name": "User Opinion Mining",
             "enabled": True,
         },
         {
-            "unique_name": "evaluation_benchmarks",
+            "unique_name": "User Profiling",
             "order": 5,
-            "name": "Evaluation and Benchmarks",
+            "name": "User Profiling",
             "enabled": True,
         },
         {
-            "unique_name": "background_papers",
+            "unique_name": "User Behavior Prediction",
             "order": 6,
-            "name": "Background Papers",
+            "name": "User Behavior Prediction",
             "enabled": True,
         },
         {
-            "unique_name": "competition",
+            "unique_name": "Social Content Generation",
             "order": 7,
-            "name": "Competition",
+            "name": "Social Content Generation",
+            "enabled": True,
+        },
+        {
+            "unique_name": "Information Diffusion Analysis",
+            "order": 8,
+            "name": "Information Diffusion Analysis",
+            "enabled": True,
+        },
+        {
+            "unique_name": "Analysis of Collective Social Phenomena",
+            "order": 9,
+            "name": "Analysis of Collective Social Phenomena",
             "enabled": True,
         },
     ]

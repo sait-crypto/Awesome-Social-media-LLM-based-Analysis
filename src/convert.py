@@ -216,20 +216,23 @@ class ReadmeGenerator:
         if not paper.pipeline_image:
             return ""
         
-        # 检查图片文件是否存在
-        image_path = paper.pipeline_image
-        if not os.path.isabs(image_path):
-            # 相对路径，转换为相对于README的路径
-            root_dir = os.path.dirname(os.path.dirname(__file__))
-            image_path = os.path.join(root_dir, image_path)
+        # 获取图片目录配置
+        fig_dir = self.settings['paths'].get('figure_dir', 'figures')
         
-        if os.path.exists(image_path):
-            # 生成Markdown图片标签
-            # 使用相对路径（相对于README.md）
-            relative_path = os.path.relpath(image_path, start=os.path.dirname(__file__) + "/..")
-            return f'<img width="1002" alt="image" src="{relative_path}">'
+        # 图片路径已经在前面的处理中规范化过，这里直接使用
+        img_path = paper.pipeline_image
         
-        return ""
+        # 检查文件是否存在于仓库中
+        project_root = os.path.dirname(os.path.dirname(__file__))
+        full_image_path = os.path.join(project_root, img_path)
+        
+        # 生成Markdown图片标签
+        if os.path.exists(full_image_path):
+            # 使用相对于项目根目录的路径
+            return f'<img width="300" alt="pipeline" src="{img_path}">'
+        else:
+            print(f"警告: pipeline图片不存在: {full_image_path}")
+            return ""
     
     def _generate_links_cell(self, paper: Paper) -> str:
         """生成链接单元格"""

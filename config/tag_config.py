@@ -64,8 +64,8 @@ TAGS_CONFIG = {
         {
             "variable": "date",          # 不可更改
             "order": 3,                     # 不可更改，必须是3
-            "table_name": "date",
-            "display_name": "date",         #3个标签在readme列表中共用一列，使用[display_name]分割3个字段
+            "table_name": "publish date",
+            "display_name": "publish date",         #3个标签在readme列表中共用一列，使用[display_name]分割3个字段
             "description": "论文发布时间",
             "type": "string",
             "validation": None,
@@ -140,7 +140,7 @@ TAGS_CONFIG = {
         {
             "variable": "summary_conclusion",
             "order": 8,
-            "table_name": "summary_conclusion",
+            "table_name": "summary conclusion",
             "display_name": "conclusion/contribution",      #5个标签在readme列表中共用一列，使用[display_name]分割5个字段
             "description": "论文的主要结论/贡献",
             "type": "string",
@@ -155,7 +155,7 @@ TAGS_CONFIG = {
         {
             "variable": "summary_limitation",
             "order": 9,
-            "table_name": "summary_limitation",
+            "table_name": "summary limitation",
             "display_name": "limitation/future",      #5个标签在readme列表中共用一列，使用[display_name]分割5个字段
             "description": "论文的局限性或未来工作",
             "type": "string",
@@ -217,7 +217,7 @@ TAGS_CONFIG = {
         {
             "variable": "title_translation",
             "order": 13,
-            "table_name": "title_translation",
+            "table_name": "title translation",
             "display_name": "标题翻译",
             "description": "可以忽略，中文标题翻译",
             "type": "string",
@@ -232,7 +232,7 @@ TAGS_CONFIG = {
         {
             "variable": "analogy_summary",
             "order": 14,
-            "table_name": "analogy_summary",
+            "table_name": "analogy summary",
             "display_name": "类比总结",
             "description": "一句话类比总结",
             "type": "string",
@@ -248,9 +248,9 @@ TAGS_CONFIG = {
         {
             "variable": "pipeline_image",
             "order": 15,
-            "table_name": "pipeline_image",
+            "table_name": "pipeline figure",
             "display_name": "Pipeline图",
-            "description": "方法流程图路径（相对路径）",  #直接在readme的论文列表中根据路径显示图片
+            "description": "请将Pipeline图片放到figures文件夹下，在此填写图片全名或相对路径",  #直接在readme的论文列表中根据路径显示图片
             "type": "string",
             "validation": None,
             "show_in_readme": True,
@@ -354,7 +354,7 @@ TAGS_CONFIG = {
         {
             "variable": "conflict_marker",
             "order": 21,
-            "table_name": "conflict_marker",
+            "table_name": "conflict marker",
             "display_name": "conflict marker",
             "description": "冲突标记",
             "type": "bool",
