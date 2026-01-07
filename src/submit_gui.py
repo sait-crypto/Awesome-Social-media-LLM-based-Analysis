@@ -1009,56 +1009,112 @@ class PaperSubmissionGUI:
                 except subprocess.CalledProcessError as e:
                     raise Exception(f"推送失败: {e.stderr}\n\n请检查远程仓库配置，或手动执行: git push origin {branch_name}")
                 
-                # 6. 创建PR（尝试使用GitHub CLI）
+                # 6. 创建PR（尝试使用GitHub CLI 或 GitHub API）
                 try:
-                    # 检查是否安装了GitHub CLI
+                    pr_title = f"论文提交: {len(self.papers)} 篇新论文"
+                    pr_body = f"通过GUI提交了 {len(self.papers)} 篇论文。\n\n包含论文:\n" + "\n".join([f"- {paper.title[:50]}..." for paper in self.papers[:5]])
+                    if len(self.papers) > 5:
+                        pr_body += f"\n...以及其他 {len(self.papers)-5} 篇论文"
+
+                    # 1) 优先使用 GitHub CLI（gh）创建 PR
                     try:
                         subprocess.run(["gh", "--version"], check=True, capture_output=True)
                         use_gh = True
                     except (subprocess.CalledProcessError, FileNotFoundError):
                         use_gh = False
-                    
+
                     if use_gh:
-                        # 使用GitHub CLI创建PR
-                        pr_title = f"论文提交: {len(self.papers)} 篇新论文"
-                        pr_body = f"通过GUI提交了 {len(self.papers)} 篇论文。\n\n包含论文:\n" + "\n".join([f"- {paper.title[:50]}..." for paper in self.papers[:5]])
-                        if len(self.papers) > 5:
-                            pr_body += f"\n...以及其他 {len(self.papers)-5} 篇论文"
-                        
                         result = subprocess.run(
-                            ["gh", "pr", "create", 
-                             "--title", pr_title,
-                             "--body", pr_body,
-                             "--base", "main"],
+                            ["gh", "pr", "create", "--base", "main", "--head", branch_name,
+                             "--title", pr_title, "--body", pr_body],
                             capture_output=True, text=True, cwd=os.getcwd()
                         )
-                        
+
                         if result.returncode == 0:
                             pr_url = result.stdout.strip()
+                            # 某些 gh 版本会把链接放到 stderr 或 stdout，尝试从 stderr 获取备用
+                            if not pr_url and result.stderr:
+                                pr_url = result.stderr.strip()
                             self.root.after(0, lambda: self.show_pr_result(pr_url))
                         else:
+                            # 如果 gh 可用但创建失败，抛出以便外层处理
                             raise Exception(f"GitHub CLI创建PR失败: {result.stderr}")
+
                     else:
-                        # GitHub CLI未安装，提供手动创建指引
-                        repo_url = ""
-                        try:
-                            # 尝试获取远程仓库URL
-                            result = subprocess.run(["git", "remote", "get-url", "origin"], 
-                                                   capture_output=True, text=True, cwd=os.getcwd())
-                            repo_url = result.stdout.strip()
-                        except:
-                            pass
-                        
-                        if repo_url and "github.com" in repo_url:
-                            # 将SSH URL转换为HTTPS URL
-                            if repo_url.startswith("git@"):
-                                repo_url = repo_url.replace(":", "/").replace("git@", "https://")
-                                repo_url = repo_url.replace(".git", "")
-                            
-                            manual_pr_url = f"{repo_url}/compare/main...{branch_name}?expand=1"
-                            self.root.after(0, lambda: self.show_manual_pr_guide(branch_name, manual_pr_url))
+                        # 2) 尝试使用 GITHUB_TOKEN 通过 GitHub REST API 创建 PR
+                        import os as _os
+                        token = _os.environ.get('GITHUB_TOKEN') or _os.environ.get('GH_TOKEN')
+                        if token:
+                            # 获取 origin 仓库信息 (owner/repo)
+                            try:
+                                r = subprocess.run(["git", "remote", "get-url", "origin"], capture_output=True, text=True, cwd=os.getcwd())
+                                repo_url = r.stdout.strip()
+                                owner_repo = None
+                                if repo_url.startswith('git@'):
+                                    # git@github.com:owner/repo.git
+                                    owner_repo = repo_url.split(':', 1)[1]
+                                elif repo_url.startswith('https://') or repo_url.startswith('http://'):
+                                    # https://github.com/owner/repo.git
+                                    owner_repo = '/'.join(repo_url.split('/')[3:])
+                                if owner_repo and owner_repo.endswith('.git'):
+                                    owner_repo = owner_repo[:-4]
+
+                                if not owner_repo:
+                                    raise Exception('无法解析远程仓库地址来创建PR')
+
+                                # 使用 requests 发起 API 请求
+                                try:
+                                    import requests
+                                    api_url = f"https://api.github.com/repos/{owner_repo}/pulls"
+                                    headers = {
+                                        'Authorization': f'token {token}',
+                                        'Accept': 'application/vnd.github+json'
+                                    }
+                                    payload = {
+                                        'title': pr_title,
+                                        'head': branch_name,
+                                        'base': 'main',
+                                        'body': pr_body
+                                    }
+                                    resp = requests.post(api_url, json=payload, headers=headers, timeout=15)
+                                    if resp.status_code in (200, 201):
+                                        pr_url = resp.json().get('html_url', '')
+                                        self.root.after(0, lambda: self.show_pr_result(pr_url))
+                                    else:
+                                        raise Exception(f"通过GitHub API创建PR失败: {resp.status_code} {resp.text}")
+                                except Exception as e_api:
+                                    raise Exception(f"尝试使用GitHub API创建PR失败: {e_api}")
+
+                            except Exception as e_remote:
+                                raise Exception(f"获取远程仓库信息失败: {e_remote}")
+
                         else:
-                            self.root.after(0, lambda: self.show_github_cli_guide(branch_name))
+                            # 3) 回退：给出手动创建的指引
+                            repo_url = ""
+                            try:
+                                # 尝试获取远程仓库URL
+                                result = subprocess.run(["git", "remote", "get-url", "origin"], 
+                                                       capture_output=True, text=True, cwd=os.getcwd())
+                                repo_url = result.stdout.strip()
+                            except Exception:
+                                repo_url = ""
+
+                            if repo_url and "github.com" in repo_url:
+                                # 将SSH URL转换为HTTPS URL
+                                if repo_url.startswith("git@"):
+                                    repo_url = repo_url.replace(":", "/").replace("git@", "https://")
+                                    repo_url = repo_url.replace(".git", "")
+                                manual_pr_url = f"{repo_url}/compare/main...{branch_name}?expand=1"
+                                self.root.after(0, lambda: self.show_manual_pr_guide(branch_name, manual_pr_url))
+                            else:
+                                self.root.after(0, lambda: self.show_github_cli_guide(branch_name))
+
+                except Exception as e:
+                    # GitHub CLI相关错误
+                    if "GitHub CLI" in str(e):
+                        self.root.after(0, lambda: self.show_github_cli_guide(branch_name))
+                    else:
+                        self.root.after(0, lambda: self.show_pr_result(""))
 
                 # 7. 切回原分支（如果我们创建了临时分支）
                 try:
@@ -1067,15 +1123,8 @@ class PaperSubmissionGUI:
                         self.root.after(0, lambda: self.update_status(f"已切回原分支: {original_branch}"))
                 except subprocess.CalledProcessError as e:
                     # 切回失败不致命，只提示
-                    self.root.after(0, lambda: self.update_status(f"切回原分支失败: {e.stderr}"))
+                    self.root.after(0, lambda: self.update_status(f"切回原分支失败: {str(e)}"))
 
-                
-                except Exception as e:
-                    # GitHub CLI相关错误
-                    if "GitHub CLI" in str(e):
-                        self.root.after(0, lambda: self.show_github_cli_guide(branch_name))
-                    else:
-                        self.root.after(0, lambda: self.show_pr_result(""))
                 
             except Exception as e:
                 self.root.after(0, lambda: messagebox.showerror("提交失败", f"{str(e)}"))

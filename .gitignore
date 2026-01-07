@@ -27,10 +27,6 @@ wheels/
 *.swo
 
 # 数据库和备份
-master/paper_database.xlsx
-master/backups/
-submit_template.json
-submit_template.xlsx
 
 # 配置文件中的敏感信息
 config/setting.config
