@@ -1,0 +1,32 @@
+{
+  "papers": [
+    {
+      "doi": "10.48550/arXiv.2407.0061",
+      "title": "Internet of agent Weaving a web of heterogeneous agents for collaborative intelligence",
+      "authors": "Chen",
+      "date": "2024/10/14",
+      "category": "User Profiling",
+      "summary_motivation": "[AI generated] To integrate diverse third-party agents and simulate distributed environments for effective collaboration.\n[翻译]\n整合多样化的第三方智能体并模拟分布式环境，以实现有效协作。",
+      "summary_innovation": "[AI generated] Introduces an Internet-like framework with a flexible integration protocol and dynamic teaming mechanisms for heterogeneous multi-agent collaboration.\n[翻译]\n提出了一个类互联网框架，通过灵活的智能体集成协议和动态组队机制，实现异构多智能体协作。",
+      "summary_method": "[AI generated] Introduces an agent integration protocol, instant-messaging-like architecture, and dynamic teaming and flow control mechanisms.\n[翻译]\n提出智能体集成协议、类即时通讯架构以及动态组队与流程控制机制。",
+      "summary_conclusion": "[AI generated] IoA consistently outperforms state-of-the-art baselines in collaborative tasks, demonstrating effective heterogeneous agent integration.\n[翻译]\nIoA在协作任务中持续优于现有最佳基线，证明了其异构智能体集成的有效性。",
+      "summary_limitation": "[AI generated] amework's reliance on LLMs' inherent capabilities may limit its performance in specialized domains requiring deep, non-linguistic reasoning. [翻译]该框架对LLM固有能力依赖，可能在需要深度非语言推理的专业领域受限。",
+      "paper_url": "https://openreview.net/forum?id=o1EtogPw",
+      "project_url": "",
+      "conference": "",
+      "title_translation": "[AI generated] **中文标题：** 智能体互联网：异构智能体协同智能的网络编织  \n**论文分类（供参考）：** 用户画像  \n\n**摘要（供参考）：**  \n大语言模型（LLMs）的快速发展为高性能自主智能体的开发铺平了道路。然而，现有的多智能体框架由于依赖其自身生态系统内定义的智能体，往往难以整合多样化的第三方智能体。同时，这些框架在模拟分布式环境方面面临挑战，因为大多数框架仅限于",
+      "analogy_summary": "[AI generated] Internet of Agents weaves a web of diverse AI agents, enabling seamless collaboration like a digital ecosystem. [翻译]智能体互联网编织了一张异构智能体网络，使其能像数字生态系统般无缝协作。",
+      "pipeline_image": "",
+      "abstract": "The rapid advancement of arge language models (LLMs) has paved the way for the development of highly capable autonomous agents. However, existing multi-agent frameworks often struggle with integrating diverse capable third-party agents due to reliance on agents defined within their own ecosystems. They also face challenges in simulating distributed environments, as most frameworks are limited to single-device setups. Furthermore, these frameworks often rely on hard-coded communication pipelines, limiting their adaptability to dynamic task requirements. Inspired by the concept of the Internet, we propose the Internet of Agents (IoA), a novel framework that addresses these limitations by providing a flexible and scalable platform for LLM-based multi-agent collaboration. IoA introduces an agent integration protocol, an instant-messaging-like architecture design, and dynamic mechanisms for agent teaming and conversation flow control. Through extensive experiments on general assistant tasks, embodied AI tasks, and retrieval-augmented generation benchmarks, we demonstrate that IoA consistently outperforms state-of-the-art baselines, showcasing its ability to facilitate effective collaboration among heterogeneous agents. IoA represents a step towards linking diverse agents in an Internet-like environment, where agents can seamlessly collaborate to achieve greater intelligence and capabilities. We will release our code to facilitate further research.",
+      "contributor": "anonymous",
+      "notes": "",
+      "show_in_readme": true,
+      "status": "",
+      "submission_time": "",
+      "conflict_marker": false
+    }
+  ],
+  "meta": {
+    "generated_at": "2026-01-07 17:47:04"
+  }
+}
