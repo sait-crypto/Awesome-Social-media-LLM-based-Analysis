@@ -183,7 +183,8 @@ class ReadmeGenerator:
         return escape_markdown(analogy)
     
     def _generate_summary_cell(self, paper: Paper) -> str:
-        """生成一句话总结单元格（5个字段）"""
+        """生成一句话总结单元格（显示简短标签，悬浮或点击可查看完整内容）"""
+        import html as _html
         fields = []
         
         if paper.summary_motivation:
@@ -208,8 +209,16 @@ class ReadmeGenerator:
         
         if not fields:
             return ""
-        
-        return "<br>".join(fields)
+
+        # 组合为完整HTML（保留换行）
+        full_html = "<br>".join(fields)
+        # 用于悬浮提示的纯文本（去除HTML标签并做转义）
+        tooltip_text = _html.escape(re.sub(r'<br\s*/?>', ' ', full_html))
+
+        # 最终展示：显示一个简短的 [summary] 标签，鼠标悬浮显示 title，点击会展开 details 查看完整内容
+        # 使用 details/summary 以支持点击展开（GitHub Markdown 支持）
+        summary_label = "[summary]"
+        return f'<details><summary title="{tooltip_text}">{summary_label}</summary><div style="margin-top:6px">{full_html}</div></details>'
     
     def _generate_pipeline_cell(self, paper: Paper) -> str:
         """生成Pipeline图单元格"""
