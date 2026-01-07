@@ -14,81 +14,93 @@ CATEGORIES_CONFIG = {
     # 分类列表，按order排序
     "categories": [
         {
-            "unique_name": "Hate Speech Analysis",
+            "unique_name": "Uncategorized",
             "order": 0,                     # 排序顺序，0为第一个
+            "name": "Uncategorized",  # 显示名称
+            "enabled": True,                # 是否启用该分类
+        },
+        {
+            "unique_name": "Hate Speech Analysis",
+            "order": 1,                     # 排序顺序，0为第一个
             "name": "Hate Speech Analysis",  # 显示名称
             "enabled": True,                # 是否启用该分类
         },
         {
             "unique_name": "Sentiment Analysis",
-            "order": 1,
+            "order": 2,
             "name": "Sentiment Analysis",
             "enabled": True,
         },
         {
             "unique_name": "Misinformation Analysis",
-            "order": 2,
+            "order": 3,
             "name": "Misinformation Analysis",
             "enabled": True,
         },
         {
             "unique_name": "Multimodal Analysis",
-            "order": 3,
+            "order": 4,
             "name": "Meme Analysis",
             "enabled": True,
         },
         {
             "unique_name": "Steganography Detection",
-            "order": 4,
+            "order": 5,
             "name": "Steganography Detection",
             "enabled": True,
         },
         {
             "unique_name": "Event Extraction",
-            "order": 5,
+            "order": 6,
             "name": "Event Extraction",
             "enabled": True,
         },
         {
             "unique_name": "Topic Modeling",
-            "order": 6,
+            "order": 7,
             "name": "Topic Modeling",
             "enabled": True,
         },
         {
             "unique_name": "User Opinion Mining",
-            "order": 7,
+            "order": 8,
             "name": "User Opinion Mining",
             "enabled": True,
         },
         {
             "unique_name": "User Profiling",
-            "order": 8,
+            "order": 9,
             "name": "User Profiling",
             "enabled": True,
         },
         {
             "unique_name": "User Behavior Prediction",
-            "order": 9,
+            "order": 10,
             "name": "User Behavior Prediction",
             "enabled": True,
         },
         {
             "unique_name": "Social Content Generation",
-            "order": 10,
+            "order": 11,
             "name": "Social Content Generation",
             "enabled": True,
         },
         {
             "unique_name": "Information Diffusion Analysis",
-            "order": 11,
+            "order": 12,
             "name": "Information Diffusion Analysis",
             "enabled": True,
         },
         {
             "unique_name": "Analysis of Collective Social Phenomena",
-            "order": 12,
+            "order": 13,
             "name": "Analysis of Collective Social Phenomena",
+            "enabled": True,
+        },
+        {
+            "unique_name": "Other",
+            "order": 100,
+            "name": "Other",
             "enabled": True,
         },
     ]

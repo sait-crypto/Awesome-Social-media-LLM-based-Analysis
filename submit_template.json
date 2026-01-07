@@ -14,7 +14,7 @@
       "paper_url": "https://openreview.net/forum?id=o1EtogPw",
       "project_url": "",
       "conference": "",
-      "title_translation": "[AI generated] **中文标题：** 智能体互联网：异构智能体协同智能的网络编织  \n**论文分类（供参考）：** 用户画像  \n\n**摘要（供参考）：**  \n大语言模型（LLMs）的快速发展为高性能自主智能体的开发铺平了道路。然而，现有的多智能体框架由于依赖其自身生态系统内定义的智能体，往往难以整合多样化的第三方智能体。同时，这些框架在模拟分布式环境方面面临挑战，因为大多数框架仅限于",
+      "title_translation": "",
       "analogy_summary": "[AI generated] Internet of Agents weaves a web of diverse AI agents, enabling seamless collaboration like a digital ecosystem. [翻译]智能体互联网编织了一张异构智能体网络，使其能像数字生态系统般无缝协作。",
       "pipeline_image": "",
       "abstract": "The rapid advancement of arge language models (LLMs) has paved the way for the development of highly capable autonomous agents. However, existing multi-agent frameworks often struggle with integrating diverse capable third-party agents due to reliance on agents defined within their own ecosystems. They also face challenges in simulating distributed environments, as most frameworks are limited to single-device setups. Furthermore, these frameworks often rely on hard-coded communication pipelines, limiting their adaptability to dynamic task requirements. Inspired by the concept of the Internet, we propose the Internet of Agents (IoA), a novel framework that addresses these limitations by providing a flexible and scalable platform for LLM-based multi-agent collaboration. IoA introduces an agent integration protocol, an instant-messaging-like architecture design, and dynamic mechanisms for agent teaming and conversation flow control. Through extensive experiments on general assistant tasks, embodied AI tasks, and retrieval-augmented generation benchmarks, we demonstrate that IoA consistently outperforms state-of-the-art baselines, showcasing its ability to facilitate effective collaboration among heterogeneous agents. IoA represents a step towards linking diverse agents in an Internet-like environment, where agents can seamlessly collaborate to achieve greater intelligence and capabilities. We will release our code to facilitate further research.",
@@ -22,11 +22,36 @@
       "notes": "",
       "show_in_readme": true,
       "status": "",
-      "submission_time": "",
+      "submission_time": "2026-01-07 21:59:51",
+      "conflict_marker": false
+    },
+    {
+      "doi": "10.1109/JIOT.2025.3532103",
+      "title": "Knowledge-Empowered Distributed Learning Platform in Internet of Unmanned Aerial Agents to Support NR-V2X Communication",
+      "authors": "to be filled in",
+      "date": "2025-11-1",
+      "category": "Multimodal Analysis",
+      "summary_motivation": "",
+      "summary_innovation": "",
+      "summary_method": "",
+      "summary_conclusion": "",
+      "summary_limitation": "",
+      "paper_url": "https://ieeexplore.ieee.org/document/10847838/",
+      "project_url": "",
+      "conference": "",
+      "title_translation": "",
+      "analogy_summary": "",
+      "pipeline_image": "",
+      "abstract": "NR-V2X Mode 2 is introduced by the third generation partnership project (3GPP) to support vehicle-to-everything (V2X) communication. In NR-V2X Mode 2, vehicles select resources for the exchange of cooperative awareness messages (CAM) in a decentralized manner based on their local observation using semi-persistent scheduling. Resources are distributed over the 2-D frequency and time domain, following the long-term evolution frame structure. Since vehicles select resources based on their local observations and due to spectrum scarcity, this may lead to contention. Hence, selecting a resource is challenging, and as each vehicle strives to select a resource, it becomes a consensus problem. To resolve resource contention, in this article, we propose a knowledge-empowered distributed multiagent deep reinforcement learning (K-MADRL) approach. Based on traffic flow information, long short-term memory (LSTM) is employed to deploy Unmanned Internet of Aerial Agents (UIAAs) to collect vehicle state information. UIAAs gather vehicle state knowledge and train the local deep reinforcement learning (DRL) model. The locally trained model at the UIAA is shared and aggregated at the gNB for the global model update. The trained policy is then sent to the vehicles over system synchronization blocks for distributed execution. Moreover, the vehicles select the resource based on the joint action, i.e., by anticipating the actions of the neighboring vehicles. Our scheme is compared with other methods, such as DRL, optimization techniques, the SPS method, and random allocation methods, used in the NR-V2X environment. The results of the simulations show that our scheme outperforms the other methods.",
+      "contributor": "anonymous",
+      "notes": "",
+      "show_in_readme": true,
+      "status": "",
+      "submission_time": "2026-01-07 22:00:46",
       "conflict_marker": false
     }
   ],
   "meta": {
-    "generated_at": "2026-01-07 17:47:04"
+    "generated_at": "2026-01-07 22:00:46"
   }
 }

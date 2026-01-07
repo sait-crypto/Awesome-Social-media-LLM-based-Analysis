@@ -27,9 +27,11 @@ wheels/
 *.swo
 
 # 数据库和备份
+my_submit.xlsx
+my_submit.json
 
 # 配置文件中的敏感信息
-config/setting.config
+
 
 # 临时文件
 *.tmp
