@@ -6,8 +6,9 @@ Checks:
 
 Exit codes:
 0 - OK
-1 - Validation errors in templates
-2 - Unauthorized file changes
+1 - Validation errors in templates or unable to close PR when nothing to process
+2 - (deprecated) previously used for unauthorized file changes, now such changes are warned and ignored
+3 - PR had no actionable changes (no added images and no template changes); script will attempt to comment and close PR
 """
 import os
 import sys
@@ -24,16 +25,25 @@ from src.core.config_loader import ConfigLoader
 from src.core.database_model import Paper
 
 
-def get_changed_files() -> List[str]:
-    # Try git diff to get changed files in PR branch vs main
+def get_changed_files_with_status() -> List[tuple]:
+    """Return list of (status, filepath) from git diff --name-status origin/main...HEAD
+    status is one of A, M, D, etc.
+    """
     try:
-        # fetch main to ensure origin/main exists
         subprocess.run(["git", "fetch", "origin", "main"], check=False)
-        res = subprocess.run(["git", "diff", "--name-only", "origin/main...HEAD"], check=True, stdout=subprocess.PIPE, text=True)
-        files = [s.strip() for s in res.stdout.splitlines() if s.strip()]
-        return files
+        res = subprocess.run(["git", "diff", "--name-status", "origin/main...HEAD"], check=True, stdout=subprocess.PIPE, text=True)
+        lines = [s.strip() for s in res.stdout.splitlines() if s.strip()]
+        out = []
+        for l in lines:
+            parts = l.split('\t')
+            if len(parts) == 1:
+                parts = l.split()
+            if len(parts) >= 2:
+                status = parts[0]
+                path = parts[1]
+                out.append((status, path))
+        return out
     except Exception:
-        # Fallback: nothing
         return []
 
 
@@ -52,6 +62,38 @@ def get_figure_dir_basename() -> str:
         return figure_dir.replace('\\', '/').rstrip('/')
     except Exception:
         return 'figures'
+
+
+def _close_pr_with_comment(reason: str):
+    """Post a comment and close the PR using GITHUB_TOKEN and GITHUB_EVENT_PATH"""
+    event_path = os.environ.get('GITHUB_EVENT_PATH')
+    token = os.environ.get('GITHUB_TOKEN')
+    if not event_path or not token:
+        print('No event or token available to close PR')
+        return
+    try:
+        with open(event_path, 'r', encoding='utf-8') as f:
+            ev = json.load(f)
+        pr = ev.get('pull_request')
+        if not pr:
+            print('No pull_request in event payload')
+            return
+        pr_num = pr.get('number')
+        repo = ev.get('repository', {}).get('full_name')
+        if not pr_num or not repo:
+            print('Cannot determine PR number or repo')
+            return
+        owner, repo_name = repo.split('/')
+        url = f'https://api.github.com/repos/{owner}/{repo_name}/issues/{pr_num}/comments'
+        headers = {'Authorization': f'token {token}', 'Accept': 'application/vnd.github.v3+json'}
+        # post comment
+        requests.post(url, headers=headers, json={'body': reason})
+        # close PR
+        url2 = f'https://api.github.com/repos/{owner}/{repo_name}/pulls/{pr_num}'
+        requests.patch(url2, headers=headers, json={'state': 'closed'})
+        print(f'Closed PR #{pr_num} with reason: {reason}')
+    except Exception as e:
+        print('Failed to close PR:', e)
 
 
 def check_changed_files_allowed(changed_files: List[str], figure_dir_basename: str) -> List[str]:
@@ -120,15 +162,30 @@ def main():
     uf = UpdateFileUtils()
 
     # 1. Check changed files in PR
-    changed = get_changed_files()
+    changed = get_changed_files_with_status()
     fig_dir = get_figure_dir_basename()
-    bad = check_changed_files_allowed(changed, fig_dir)
+
+    # Determine added images and template changes
+    added_images = [p for s,p in changed if s == 'A' and p.replace('\\','/').startswith(fig_dir + '/')]
+    json_changed = any(p == 'submit_template.json' for s,p in changed)
+    xlsx_changed = any(p == 'submit_template.xlsx' for s,p in changed)
+
+    # If nothing to process (no added images and no template changes), close PR and exit
+    if not added_images and not json_changed and not xlsx_changed:
+        msg = 'This PR does not add new images under the configured figure dir nor modify submit templates. Closing PR as there is nothing to process.'
+        print(msg)
+        # Try to close PR with a comment
+        _close_pr_with_comment(msg)
+        sys.exit(3)
+
+    # Now check unauthorized files
+    bad = check_changed_files_allowed([p for s,p in changed], fig_dir)
     if bad:
-        print('Unauthorized files changed in PR:')
+        print('Warning: PR contains other changed files (these will be ignored by automated processing):')
         for b in bad:
             print('  -', b)
-        print(f"Only modifications to submit_template.json, submit_template.xlsx and '{fig_dir}/**' are allowed.")
-        sys.exit(2)
+        print(f"NOTE: Only modifications to submit_template.json, submit_template.xlsx and '{fig_dir}/**' will be applied by this automation.")
+        # Do not exit; continue but ignore those files
 
     # 2. Validate contents
     all_errors = []
@@ -136,21 +193,38 @@ def main():
     json_path = os.path.join(repo_root, 'submit_template.json')
     xlsx_path = os.path.join(repo_root, 'submit_template.xlsx')
 
-    if os.path.exists(json_path):
+    if json_changed and os.path.exists(json_path):
         print('Validating JSON file:', json_path)
         errs = validate_json_file(uf, json_path)
         all_errors.extend(errs)
 
-    if os.path.exists(xlsx_path):
+    if xlsx_changed and os.path.exists(xlsx_path):
         print('Validating Excel file:', xlsx_path)
         errs = validate_excel_file(uf, xlsx_path)
         all_errors.extend(errs)
+
+    # Validate added images have allowed extensions
+    valid_exts = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'}
+    for f in added_images:
+        ext = os.path.splitext(f)[1].lower()
+        if ext not in valid_exts:
+            all_errors.append(f'Added image {f} has invalid extension {ext}')
 
     if all_errors:
         print('Validation failed:')
         for e in all_errors:
             print('  -', e)
         sys.exit(1)
+
+    # Export info for next processing step
+    # Write JSON file listing added images and flags
+    info = {
+        'added_images': added_images,
+        'json_changed': json_changed,
+        'xlsx_changed': xlsx_changed
+    }
+    with open(os.path.join(os.path.dirname(__file__), 'validate_info.json'), 'w', encoding='utf-8') as f:
+        json.dump(info, f, ensure_ascii=False)
 
     print('All template validations passed')
 

@@ -935,7 +935,7 @@ class PaperSubmissionGUI:
     
     def submit_pr(self):
         """提交PR（模拟）"""
-        messagebox.showinfo("须知", f"将自动通过pull request提交论文，具体进行以下操作:\n  1.如果当前在main分支，将进行自动创建并切换到新分支\n  2.自动提交PR\n  3.如果根目录中的submit_template.xlsx或submit_template.json已按规范填写，且没有项目中任何其他更改，您提交的论文会自动更新到仓库论文列表\n\n")
+        messagebox.showinfo("须知", f"将自动通过pull request提交论文，具体进行以下操作:\n  1.如果当前在main分支，将进行自动创建并切换到新分支\n  2.自动提交PR\n  3.如果根目录中的submit_template.xlsx或submit_template.json已按规范填写，且没有项目中任何其他更改，您提交的论文会自动更新到仓库论文列表\n  4. 提交完成后，程序会自动切回您之前所在的分支（不会保留本次临时分支）\n\n")
         
         # 检查是否有论文
         if not self.papers:
@@ -968,6 +968,8 @@ class PaperSubmissionGUI:
                 result = subprocess.run(["git", "branch", "--show-current"], 
                                        capture_output=True, text=True, cwd=os.getcwd())
                 current_branch = result.stdout.strip()
+                original_branch = current_branch
+                created_new_branch = False
                 
                 # 3. 如果在main分支，创建新分支
                 if current_branch == "main":
@@ -975,6 +977,7 @@ class PaperSubmissionGUI:
                     try:
                         subprocess.run(["git", "checkout", "-b", branch_name], 
                                       check=True, capture_output=True, text=True, cwd=os.getcwd())
+                        created_new_branch = True
                         self.root.after(0, lambda: self.update_status(f"已创建并切换到新分支: {branch_name}"))
                     except subprocess.CalledProcessError as e:
                         raise Exception(f"创建分支失败: {e.stderr}")
@@ -1056,6 +1059,16 @@ class PaperSubmissionGUI:
                             self.root.after(0, lambda: self.show_manual_pr_guide(branch_name, manual_pr_url))
                         else:
                             self.root.after(0, lambda: self.show_github_cli_guide(branch_name))
+
+                # 7. 切回原分支（如果我们创建了临时分支）
+                try:
+                    if created_new_branch:
+                        subprocess.run(["git", "checkout", original_branch], check=True, capture_output=True, text=True, cwd=os.getcwd())
+                        self.root.after(0, lambda: self.update_status(f"已切回原分支: {original_branch}"))
+                except subprocess.CalledProcessError as e:
+                    # 切回失败不致命，只提示
+                    self.root.after(0, lambda: self.update_status(f"切回原分支失败: {e.stderr}"))
+
                 
                 except Exception as e:
                     # GitHub CLI相关错误
@@ -1091,6 +1104,7 @@ GitHub CLI未安装或配置，无法自动创建PR。
    d. 填写PR信息并提交
 
 当前分支: {branch_name}
+提交完成后本程序会自动切回您之前所在的分支（如果创建了临时分支）。
 """
         messagebox.showinfo("手动创建PR指引", guide)
         self.update_status("需要手动创建PR")
@@ -1113,6 +1127,7 @@ GitHub CLI未安装或配置，无法自动创建PR。
    e. 点击 "Create pull request"
 
 提交的论文数: {len(self.papers)} 篇
+\n提交完成后本程序会自动切回您之前所在的分支（如果创建了临时分支）。
 """
         messagebox.showinfo("创建Pull Request", guide)
         self.update_status(f"请手动创建PR: {branch_name}")
@@ -1146,6 +1161,18 @@ GitHub CLI未安装或配置，无法自动创建PR。
             justify=tk.LEFT
         )
         pr_label.pack(pady=(0, 20))
+
+
+        # 如果有PR链接，显示已切回原分支的说明
+        if pr_url:
+            note_label = ttk.Label(
+                result_window,
+                text="已切回您先前所在的分支（若创建了临时分支）",
+                wraplength=600,
+                justify=tk.LEFT,
+                foreground='gray'
+            )
+            note_label.pack(pady=(0, 10))
         
         if pr_url:
             # 添加复制链接按钮

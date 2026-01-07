@@ -354,6 +354,13 @@ class UpdateFileUtils:
                     df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
                 else:
                     df[col] = df[col].fillna("").astype(str).str.strip()
+        # 保存 header style 到 attrs，确保写回Excel时能恢复表头颜色
+        header_fill, required_fill, required_font = self.get_header_styles()
+        df.attrs['header_styles'] = {
+            'header_row_fill': header_fill,
+            'required_header_fill': required_fill,
+            'required_font_color': required_font
+        }
         return df
     
     def create_empty_update_file_df(self):
@@ -368,10 +375,48 @@ class UpdateFileUtils:
         non_system_tags.sort(key=lambda x: x['order'])
         columns = [tag['table_name'] for tag in non_system_tags]
         df= pd.DataFrame(columns=columns)
-        
+        # 把 header style 信息存入 DataFrame.attrs，以便写回Excel时保留表头样式
+        header_fill, required_fill, required_font = self.get_header_styles()
+        df.attrs['header_styles'] = {
+            'header_row_fill': header_fill,
+            'required_header_fill': required_fill,
+            'required_font_color': required_font
+        }
 
         return df
     
+
+    def ensure_update_file_format(self, filepath: str = None) -> bool:
+        """确保更新文件按非系统字段规范化并写回，保证表头样式存在。
+        返回True表示写回成功或文件存在并已格式化，False表示失败。
+        """
+        try:
+            import pandas as pd
+        except Exception as e:
+            print( f"无法导入pandas依赖:{e}\n 注意如果要加载excel文件，你需要安装pandas依赖包")
+            return False
+
+        if filepath is None:
+            filepath = self.update_excel_path
+
+        df = self.read_excel_file(filepath)
+        if df is None or df.empty:
+            df = self.create_empty_update_file_df()
+        else:
+            try:
+                df = self.normalize_update_file_columns(df)
+            except Exception as e:
+                print(f"规范化更新文件列失败: {e}")
+                return False
+
+        header_fill, required_fill, required_font = self.get_header_styles()
+        df.attrs['header_styles'] = {
+            'header_row_fill': header_fill,
+            'required_header_fill': required_fill,
+            'required_font_color': required_font
+        }
+
+        return self.write_excel_file(filepath, df)
 
     def _regenerate_columns_from_tags(self,config_instance) -> List[str]:
         """根据tag_config生成按order排序的表列名（table_name）列表"""
@@ -436,6 +481,13 @@ class UpdateFileUtils:
                     df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
                 else:
                     df[col] = df[col].fillna("").astype(str).str.strip()
+        # 保存 header style 到 attrs，确保写回Excel时能恢复表头颜色
+        header_fill, required_fill, required_font = self.get_header_styles()
+        df.attrs['header_styles'] = {
+            'header_row_fill': header_fill,
+            'required_header_fill': required_fill,
+            'required_font_color': required_font
+        }
         return df
 
     def normalize_json_papers(self,raw_papers: List[Dict[str, Any]], config_instance) -> List[Dict[str, Any]]:
@@ -934,10 +986,10 @@ class UpdateFileUtils:
         try:
             from openpyxl.styles import PatternFill, Font
             from openpyxl.utils import get_column_letter
-
         except Exception as e:
-            print( f"无法导入openpyxl依赖:{e}\n 注意如果要应用excel格式，你需要安装openpyxl依赖包")
+            print(f"无法导入openpyxl依赖:{e}\n 注意如果要应用excel格式，你需要安装openpyxl依赖包")
             return
+        
         # 获取样式（优先使用 df.attrs 中保存的初始化样式）
         hs = df.attrs.get('header_styles', None) if hasattr(df, 'attrs') else None
         if hs:
@@ -947,9 +999,13 @@ class UpdateFileUtils:
         else:
             header_row_color, required_color, required_font_color = self.get_header_styles()
 
-        header_fill = PatternFill(start_color=header_row_color.lstrip('#'), end_color=header_row_color.lstrip('#'), fill_type="solid")
+        header_fill = PatternFill(start_color=header_row_color.lstrip('#'), 
+                                end_color=header_row_color.lstrip('#'), 
+                                fill_type="solid")
         header_font = Font(bold=True)
-        required_fill = PatternFill(start_color=required_color.lstrip('#'), end_color=required_color.lstrip('#'), fill_type="solid")
+        required_fill = PatternFill(start_color=required_color.lstrip('#'), 
+                                end_color=required_color.lstrip('#'), 
+                                fill_type="solid")
         required_font = Font(color=required_font_color.lstrip('#'), bold=True)
 
         # 第一行表头样式
@@ -968,15 +1024,37 @@ class UpdateFileUtils:
                 cell.fill = required_fill
                 cell.font = required_font
 
-        # 设置列宽
+        # 设置列宽 - 修复列宽计算问题
         for column in df.columns:
             column_letter = get_column_letter(df.columns.get_loc(column) + 1)
-            max_length = max(
-                df[column].astype(str).map(len).max(),
-                len(str(column))
-            )
-            adjusted_width = min(max_length + 2, 50)
+            
+            # 计算合适的列宽
+            if df.empty:
+                # 如果DataFrame为空，使用列名的长度
+                column_length = len(str(column))
+            else:
+                # 如果有数据，计算列名和列中数据的最大长度
+                try:
+                    import pandas as pd
+                    # 确保数据是字符串类型
+                    column_data = df[column].astype(str)
+                    max_data_length = column_data.map(len).max()
+                    column_length = max(len(str(column)), max_data_length)
+                except:
+                    column_length = len(str(column))
+            
+            # 确保最小列宽为15，最大不超过50
+            adjusted_width = max(min(column_length + 3, 50), 15)
             worksheet.column_dimensions[column_letter].width = adjusted_width
+        
+        # 确保所有行都可见（解除隐藏）
+        worksheet.sheet_format.defaultRowHeight = 15
+        
+        # 确保单元格格式设置为自动换行，这样内容不会被隐藏
+        for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row, 
+                                    min_col=1, max_col=worksheet.max_column):
+            for cell in row:
+                cell.alignment = cell.alignment.copy(wrapText=True)
 
 # 创建全局单例
 _update_file_utils_instance = None

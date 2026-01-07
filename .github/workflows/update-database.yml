@@ -144,18 +144,20 @@ jobs:
         cd scripts
         python validate_update_files.py
 
-    - name: Run update processor
-      id: update-process
+    - name: Process validated PR and update main
+      id: process-pr
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo "🔄 运行更新处理器..."
-        
-        # 运行更新脚本
+        echo "🔧 合并新图片并运行更新处理器..."
         cd scripts
-        python update.py
-        
-        # 检查更新结果
-        if [ -f "update_result.json" ]; then
-          RESULT=$(cat update_result.json)
+        python process_pr_update.py
+
+    - name: Check update result
+      id: update-result
+      run: |
+        if [ -f "scripts/update_result.json" ]; then
+          RESULT=$(cat scripts/update_result.json)
           echo "result=$RESULT" >> $GITHUB_OUTPUT
           echo "✅ 更新处理器执行完成"
         else
@@ -164,7 +166,7 @@ jobs:
         fi
     
     - name: Generate README
-      if: steps.update-process.outcome == 'success'
+      if: steps.process-pr.outcome == 'success'
       run: |
         echo "📄 生成 README..."
         cd scripts
@@ -180,7 +182,7 @@ jobs:
         fi
     
     - name: Commit changes
-      if: steps.update-process.outcome == 'success'
+      if: steps.process-pr.outcome == 'success'
       run: |
         echo "💾 提交更改..."
         
@@ -226,7 +228,7 @@ jobs:
           SUMMARY+="**处理模式:** 👨‍💼 手动批准\n\n"
         fi
         
-        if [ "${{ steps.update-process.outcome }}" = "success" ]; then
+        if [ "${{ steps.process-pr.outcome }}" = "success" ]; then
           SUMMARY+="✅ **成功处理提交**\n\n"
           
           # 添加成功详情
@@ -344,7 +346,7 @@ jobs:
           // 管理标签
           const labels = ['paper-submission'];
           
-          if ('${{ steps.update-process.outcome }}' === 'success') {
+          if ('${{ steps.process-pr.outcome }}' === 'success') {
             labels.push('processed-successfully');
             
             // 在手动模式下，处理完成后移除批准标签

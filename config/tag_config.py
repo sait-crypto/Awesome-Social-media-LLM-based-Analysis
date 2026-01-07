@@ -280,7 +280,7 @@ TAGS_CONFIG = {
             "order": 17,
             "table_name": "contributor",
             "display_name": "提供者",
-            "description": "提交论文的组员标识符",
+            "description": "您的标识或姓名，请尽量保持一致，以便统计贡献者",
             "type": "string",
             "validation": None,
             "show_in_readme": False,
@@ -347,7 +347,7 @@ TAGS_CONFIG = {
             "validation": None,
             "show_in_readme": False,
             "enabled": True,
-            "immutable": False,
+            "immutable": True,
             "required": False,     
             "system_var": True,            #控制字段，为真时只在数据库中显示           
         },

@@ -195,6 +195,14 @@ class UpdateProcessor:
                 err = f"清理更新文件失败: {e}"
                 result['errors'].append(err)
                 print(f"警告: {err}")
+
+            # 确保更新文件的表头和列格式被规范化（防止表头行丢失或样式被重置）
+            try:
+                self.update_utils.ensure_update_file_format()
+            except Exception as e:
+                err = f"规范化更新文件格式失败: {e}"
+                result['errors'].append(err)
+                print(f"警告: {err}")
         
         return result
     
