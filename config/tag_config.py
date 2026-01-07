@@ -353,7 +353,7 @@ TAGS_CONFIG = {
         },
         {
             "variable": "conflict_marker",
-            "order": 21,
+            "order": 22,
             "table_name": "conflict marker",
             "display_name": "conflict marker",
             "description": "冲突标记",
