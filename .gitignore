@@ -37,5 +37,10 @@ my_submit.json
 *.tmp
 *.temp
 
+**/*副本*
+**/*冲突*
+**/*~$*
+**/*baidunet*
+
 # 日志文件
 *.log

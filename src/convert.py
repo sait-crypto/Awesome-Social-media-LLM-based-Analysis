@@ -135,7 +135,7 @@ class ReadmeGenerator:
         # 第4列：一句话总结（小字体显示）
         summary_cell = self._generate_summary_cell(paper)
         if summary_cell:
-            summary_cell = f" <div style=\"line-height: 1.05;font-size: 0.5em\"> {summary_cell}</div>"
+            summary_cell = f" <div style=\"line-height: 1.05;font-size: 0.8em\"> {summary_cell}</div>"
 
         return f"|{title_authors_cell}|{analogy_cell}|{pipeline_cell}|{summary_cell}|\n"
     

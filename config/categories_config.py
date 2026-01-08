@@ -98,6 +98,12 @@ CATEGORIES_CONFIG = {
             "enabled": True,
         },
         {
+            "unique_name": "Social Simulation",
+            "order": 14,
+            "name": "Social Simulation",
+            "enabled": True,
+        },
+        {
             "unique_name": "Other",
             "order": 100,
             "name": "Other",
