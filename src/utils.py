@@ -150,37 +150,47 @@ def normalize_pipeline_image(path: str, figure_dir: str = "figures") -> str:
 
 def validate_pipeline_image(path: str, figure_dir: str = "figures") -> Tuple[bool, str]:
     """
-    验证pipeline图片，返回(是否有效, 规范化后的路径)
-    验证规则：
-    1. 非空
-    2. 扩展名是图片格式
-    3. 路径符合规范
+    验证 pipeline 图片（支持多图），返回 (是否有效, 规范化后的路径或多图以";"连接的字符串)
+    - 允许使用分隔符 `;` 或中文 `；` 输入多张图片
+    - 最多允许 3 张图片；超过则返回 False
+    - 每张图片使用 `normalize_pipeline_image` 规范化并验证扩展名与位于 figure_dir 下
     """
     if not path or not str(path).strip():
         return (True, "")  # 允许为空
-    
+
     path_s = str(path).strip()
-    
-    # 先规范化路径
-    normalized = normalize_pipeline_image(path_s, figure_dir)
-    
-    # 检查文件扩展名
+
+    # 支持多分隔符：; 或 中文 ；
+    parts = [p.strip() for p in re.split(r'[;；]', path_s) if p.strip()]
+
+    if not parts:
+        return (True, "")
+
+    # 限制最多 3 张图片
+    if len(parts) > 3:
+        # 仍返回规范化的前3项以便提示，但判定为无效
+        normalized_parts = [normalize_pipeline_image(p, figure_dir) for p in parts[:3]]
+        return (False, ";".join(normalized_parts))
+
+    normalized_parts = []
     valid_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'}
-    ext = os.path.splitext(normalized)[1].lower()
-    
-    if ext not in valid_extensions:
-        return (False, normalized)
-    
-    # 检查路径是否在figure_dir下
-    # 规范化 figure_dir，防止 Windows 路径分隔符不一致导致 startswith 失败
+
+    # 规范化 figure_dir 用于比较
     fig_dir_norm = figure_dir.replace('\\', '/').rstrip('/')
-    # 如果 figure_dir 是绝对路径，使用其 basename 进行比较（确保与 normalize_pipeline_image 返回的相对路径一致）
     if os.path.isabs(fig_dir_norm):
         fig_dir_norm = os.path.basename(fig_dir_norm)
-    if not normalized.startswith(fig_dir_norm + '/'):
-        return (False, normalized)
-    
-    return (True, normalized)
+
+    for p in parts:
+        normalized = normalize_pipeline_image(p, figure_dir)
+        ext = os.path.splitext(normalized)[1].lower()
+        if ext not in valid_extensions:
+            return (False, normalized)
+        if not normalized.startswith(fig_dir_norm + '/'):
+            return (False, normalized)
+        normalized_parts.append(normalized)
+
+    # 以分号分隔返回规范化后的路径
+    return (True, ";".join(normalized_parts))
 
 
 

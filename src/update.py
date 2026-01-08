@@ -34,6 +34,8 @@ class UpdateProcessor:
         
         self.update_excel_path = self.settings['paths']['update_excel']
         self.update_json_path = self.settings['paths']['update_json']
+        self.my_update_excel_path = self.settings['paths']['my_update_excel']
+        self.my_update_json_path = self.settings['paths']['my_update_json']
         self.default_contributor = self.settings['database']['default_contributor']
     
     def process_updates(self, conflict_resolution: str = 'mark') -> Dict:
@@ -59,8 +61,10 @@ class UpdateProcessor:
         # 检查更新文件是否存在
         excel_exists = os.path.exists(self.update_excel_path)
         json_exists = os.path.exists(self.update_json_path)
-        
-        if not excel_exists and not json_exists:
+        my_excel_exists = os.path.exists(self.my_update_excel_path)
+        my_json_exists = os.path.exists(self.my_update_json_path)
+
+        if not excel_exists and not json_exists and not my_excel_exists and not my_json_exists:
             result['errors'].append("没有找到更新文件")
             return result
         
@@ -86,7 +90,27 @@ class UpdateProcessor:
                 error_msg = f"加载JSON文件失败: {e}"
                 result['errors'].append(error_msg)
                 print(f"错误: {error_msg}")
-        
+                
+        #处理“My”更新文件
+        if my_excel_exists:
+            try:
+                my_excel_papers = self.update_utils.load_papers_from_excel(self.my_update_excel_path)
+                new_papers.extend(my_excel_papers)
+                print(f"My Excel文件中有 {len(my_excel_papers)} 个论文条目")
+            except Exception as e:
+                error_msg = f"加载My Excel文件失败: {e}"
+                result['errors'].append(error_msg)
+                print(f"错误: {error_msg}")
+        if my_json_exists:
+            try:
+                my_json_papers = self.update_utils.load_papers_from_json(self.my_update_json_path)
+                new_papers.extend(my_json_papers)
+                print(f"My JSON文件中有 {len(my_json_papers)} 个论文条目")
+            except Exception as e:
+                error_msg = f"加载My JSON文件失败: {e}"
+                result['errors'].append(error_msg)
+                print(f"错误: {error_msg}")
+
         if not new_papers:
             if not result['errors']:  # 如果没有错误但也没有论文
                 result['errors'].append("更新文件中没有有效的论文数据")
@@ -186,7 +210,7 @@ class UpdateProcessor:
         result['conflicts'] = conflicts_list
         
         # 如果配置中开启相关变量，从更新文件中移除已成功处理的论文
-        if self.settings['database'].get('remove_added_paper_in_template', True):
+        if self.settings['database'].get('remove_added_paper_in_template','false').lower() == 'true':
 
             try:
                 self._remove_processed_papers(added_papers)
@@ -267,7 +291,7 @@ class UpdateProcessor:
     
 def main():
     """主函数"""
-    print("===！！！！注意：运行该脚本前请关闭核心excel文件，以免写入冲突它不会提醒的！！！！===\n！！！只会默默处理完并尝试写入！！！\n！！！如若未关闭，请终止进程！！！")
+    print("===！！！！注意：运行该脚本前请关闭核心excel文件，以免无法写入！！！！===\n！！！他只会默默处理完并尝试写入！！！\n！！！如若未关闭，请终止进程！！！")
     print("开始处理更新文件...")
     
     processor = UpdateProcessor()
@@ -275,8 +299,10 @@ def main():
     # 检查是否有更新
     excel_exists = os.path.exists(processor.update_excel_path)
     json_exists = os.path.exists(processor.update_json_path)
-    
-    if not excel_exists and not json_exists:
+    my_excel_exists = os.path.exists(processor.my_update_excel_path)
+    my_json_exists = os.path.exists(processor.my_update_json_path)
+
+    if not excel_exists and not json_exists and not my_excel_exists and not my_json_exists:
         print("没有找到更新文件")
         return
     

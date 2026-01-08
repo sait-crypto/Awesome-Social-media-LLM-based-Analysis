@@ -250,7 +250,7 @@ TAGS_CONFIG = {
             "order": 15,
             "table_name": "pipeline figure",
             "display_name": "Pipeline图",
-            "description": "请将Pipeline图片放到figures文件夹下，在此填写图片全名或相对路径",  #直接在readme的论文列表中根据路径显示图片
+            "description": "请将Pipeline图片放到figures文件夹下，在此填写图片全名或相对路径；可用`;`或`；`分隔，最多3张图片",  #直接在readme的论文列表中根据路径显示图片
             "type": "string",
             "validation": None,
             "show_in_readme": True,

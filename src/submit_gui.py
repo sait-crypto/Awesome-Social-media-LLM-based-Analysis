@@ -673,17 +673,17 @@ class PaperSubmissionGUI:
             messagebox.showerror("错误", "项目链接格式无效")
             return None
         
-         # 验证pipeline_image
+         # 验证pipeline_image（支持多图，用分号或中文分号分隔，最多3张）
         pipeline = paper_data.get('pipeline_image', '')
         if pipeline:
+            from src.utils import validate_pipeline_image
             fig_dir = self.settings['paths'].get('figure_dir', 'figures')
-            # 验证图片格式
-            if not validate_figure(pipeline, fig_dir):
-                messagebox.showerror("错误", "Pipeline图片格式无效（仅支持常见图片格式，如jpg/png/gif等）")
+            valid, normalized = validate_pipeline_image(pipeline, fig_dir)
+            if not valid:
+                messagebox.showerror("错误", "Pipeline图片格式无效（仅支持最多3张图片，常见图片格式如jpg/png/gif等）")
                 return None
-            
-            # 规范化路径
-            paper_data['pipeline_image'] = normalize_figure_path(pipeline, fig_dir)
+            # 使用规范化后的（可能为多图，以分号分隔）值
+            paper_data['pipeline_image'] = normalized
         
         # 创建Paper对象
         try:

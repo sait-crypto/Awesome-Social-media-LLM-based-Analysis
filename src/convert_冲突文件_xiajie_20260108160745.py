@@ -5,8 +5,8 @@ import os
 import sys
 from pathlib import Path
 
-# 添加 src 目录到 Python 路径（使 `core` 包可被导入）
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+# 添加项目根目录到Python路径
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from core.database_manager import DatabaseManager
 from core.database_model import Paper
@@ -142,8 +142,7 @@ class ReadmeGenerator:
     def _generate_title_authors_cell(self, paper: Paper) -> str:
         """生成标题和作者单元格"""
         # 清理和格式化
-        # 标题不使用过度转义（避免将 '-' 或 '.' 变为 '\\-' 或 '\\.'），交给 create_hyperlink 的内部转义处理
-        title = truncate_text(paper.title, self.max_title_length)
+        title = escape_markdown(truncate_text(paper.title, self.max_title_length))
         authors = escape_markdown(format_authors(paper.authors, self.max_authors_length))
         date = paper.date if paper.date else ""
         

@@ -41,6 +41,7 @@ class UpdateFileUtils:
         self.update_excel_path = self.settings['paths']['update_excel']
         self.update_json_path = self.settings['paths']['update_json']
 
+
     def read_json_file(self,filepath: str) -> Optional[Dict]:
         """读取JSON文件"""
         try:
@@ -747,14 +748,17 @@ class UpdateFileUtils:
                 # 类型转换
                 value = self._convert_value_by_type(value, tag_type)
                 
-                # 特殊处理：验证pipeline_image字段
+                # 特殊处理：验证pipeline_image字段（支持多图）
                 if var_name == 'pipeline_image' and value:
-                    # 验证图片格式和路径
-                    from src.utils import validate_figure
+                    # 验证图片格式和路径（允许多图）
+                    from src.utils import validate_pipeline_image
                     fig_dir = self.config.settings['paths'].get('figure_dir', 'figures')
-                    if not validate_figure(value, fig_dir):
+                    valid, normalized = validate_pipeline_image(value, fig_dir)
+                    if not valid:
                         print(f"警告: 图片路径格式无效: {value}")
                         value = ""  # 如果无效，清空
+                    else:
+                        value = normalized
             
             paper_data[var_name] = value
         

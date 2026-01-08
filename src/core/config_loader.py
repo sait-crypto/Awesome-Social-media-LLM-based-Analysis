@@ -55,7 +55,7 @@ class ConfigLoader:
             paths.setdefault('update_json', 'submit_template.json')
             for k, v in paths.items():
                 if not v:
-                    normalized[k] = None
+                    normalized[k] = Nones
                     continue
                 p = Path(v)
                 try:
