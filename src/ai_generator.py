@@ -178,7 +178,7 @@ class AIGenerator:
         # 1. 目标/动机
         motivation_prompt = f"""{preprompt}
 
-你的分工：请总结并直接给出这篇论文的研究目标或动机（35字以内，能短尽量短）："""
+你的分工：请总结并直接给出这篇论文的研究目标或动机（45字以内，能短尽量短）："""
         if  field == 'summary_motivation':
             motivation = self._call_api(motivation_prompt, max_tokens=80)
             if motivation:
@@ -187,7 +187,7 @@ class AIGenerator:
         # 2. 创新点
         innovation_prompt = f"""{preprompt}
 
-你的分工：请总结并直接给出这篇论文的主要创新点，即该论文有什么值得我引用到综述里的（35字以内，能短尽量短）："""
+你的分工：请总结并直接给出这篇论文的主要创新点，即该论文有什么值得我引用到综述里的（45字以内，能短尽量短）："""
         if field == 'summary_innovation':
             innovation = self._call_api(innovation_prompt, max_tokens=80)
             if innovation:
@@ -196,7 +196,7 @@ class AIGenerator:
         # 3. 方法精炼
         method_prompt = f"""{preprompt}
 
-你的分工：请精炼总结并直接给出这篇论文的核心方法（45字以内，能短尽量短）："""
+你的分工：请精炼总结并直接给出这篇论文的核心方法（70字以内，能短尽量短）："""
         if field == 'summary_method':
             method = self._call_api(method_prompt, max_tokens=80)
             if method:
@@ -205,7 +205,7 @@ class AIGenerator:
         # 4. 简要结论
         conclusion_prompt = f"""{preprompt}
 
-你的分工：请总结并直接给出这篇论文的主要结论或贡献（35字以内，能短尽量短）："""
+你的分工：请总结并直接给出这篇论文的主要结论或贡献（45字以内，能短尽量短）："""
         if field == 'summary_conclusion':
             conclusion = self._call_api(conclusion_prompt, max_tokens=80)
             if conclusion:
@@ -214,7 +214,7 @@ class AIGenerator:
         # 5. 重要局限/展望
         limitation_prompt = f"""{preprompt}
 
-你的分工：请总结并直接指出这篇论文的重要局限性或未来工作展望（35字以内，能短尽量短）："""
+你的分工：请总结并直接指出这篇论文的重要局限性或未来工作展望（45字以内，能短尽量短）："""
         if field == 'summary_limitation':
             limitation = self._call_api(limitation_prompt, max_tokens=80)
             if limitation:

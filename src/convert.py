@@ -276,10 +276,10 @@ class ReadmeGenerator:
         # 生成图片标签：如果只有一张，保留原来的大图；多张则并列显示并缩小宽度
         n = len(existing_imgs)
         if n == 1:
-            return f'<img width="1000" alt="pipeline" src="{existing_imgs[0]}">' 
+            return f'<img width="1200" alt="pipeline" src="{existing_imgs[0]}">' 
         else:
-            # 多张图片垂直堆叠，每张使用原始宽度（不缩小），保持长宽比
-            imgs_html = ''.join([f'<img width="800" style="display:block;margin:6px auto" alt="pipeline" src="{p}">' for p in existing_imgs])
+            # 多张图片垂直堆叠，适当缩小，保持长宽比
+            imgs_html = ''.join([f'<img width="1000" style="display:block;margin:6px auto" alt="pipeline" src="{p}">' for p in existing_imgs])
             return f'<div style="display:flex;flex-direction:column;gap:6px;align-items:center">{imgs_html}</div>'
     
     def _generate_links_cell(self, paper: Paper) -> str:
