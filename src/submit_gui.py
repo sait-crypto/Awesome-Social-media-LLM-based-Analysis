@@ -1,5 +1,7 @@
 """
 图形化界面提交系统
+它由submit.py调用
+为方便贡献者，该脚本的运行不需要任何额外的非官方第三方包
 """
 import os
 import sys
@@ -14,7 +16,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../'))
 
 from src.core.config_loader import get_config_instance
-from src.core.database_model import Paper
+from src.core.database_model import Paper, is_same_identity
 from src.core.update_file_utils import get_update_file_utils
 from src.utils import validate_figure, normalize_figure_path
 
@@ -179,7 +181,7 @@ class PaperSubmissionGUI:
         # 删除论文按钮
         delete_button = ttk.Button(
             list_buttons_frame,
-            text="🗑️ 删除论文",
+            text="🗑️删除论文",
             command=self.delete_paper,
             width=15
         )
@@ -756,7 +758,7 @@ class PaperSubmissionGUI:
             return False
         
         
-        # 验证论文字段
+        # 验证论文字段 - 使用统一验证函数
         config = get_config_instance()
         valid, errors = paper.validate_paper_fields(
             config,
@@ -765,6 +767,7 @@ class PaperSubmissionGUI:
         )
         
         if not valid:
+            # 还原原来的弹窗逻辑
             error_msg = "以下字段验证失败:\n\n" + "\n".join(errors[:5])
             if len(errors) > 5:
                 error_msg += f"\n...以及其他 {len(errors)-5} 个错误"
@@ -875,63 +878,93 @@ class PaperSubmissionGUI:
         self.paper_tree.selection_remove(self.paper_tree.selection())
 
     def save_all_papers(self):
-        """保存所有论文到更新文件"""
+        """保存所有论文到更新文件（增量更新模式）"""
         if not self.papers:
             messagebox.showwarning("警告", "没有论文可以保存")
             return
         
-        # 先保存当前编辑的论文
+        # 1. 先保存当前正在编辑的论文（如果存在）
         if not self.save_current_paper():
             return
         
-        # 验证所有论文
         config = get_config_instance()
         conflict_marker = config.settings['database'].get('conflict_marker', '[💥冲突]')
-        invalid_papers = []
+
+        # 2. 读取现有JSON文件内容
+        existing_papers = []
+        try:
+            if os.path.exists(self.update_json_path):
+                existing_papers = self.update_utils.load_papers_from_json(self.update_json_path)
+        except Exception as e:
+            messagebox.showerror("错误", f"读取现有JSON文件失败: {e}")
+            return
+
+        # 3. 逐条处理合并与冲突
+        merged_papers = list(existing_papers) # 创建副本
         
-        for i, paper in enumerate(self.papers):
-            # 清理doi（包含冲突标记）
+        # 建立现有论文的快速查找映射 (Key -> Paper)
+        existing_map = {}
+        for p in existing_papers:
+            key = p.get_key()
+            existing_map[key] = p
+
+        for paper in self.papers:
+            # 清理doi
             paper.doi = clean_doi(paper.doi, conflict_marker) if paper.doi else ""
             
-            # 验证论文字段
-            valid, errors = paper.validate_paper_fields(
+            key = paper.get_key()
+            
+            if key in existing_map:
+                # 发现冲突，弹窗询问
+                existing_p = existing_map[key]
+                msg = f"论文已存在于更新文件中:\n\n标题: {paper.title}\nDOI: {paper.doi}\n\n是否覆盖原有条目？\n\n- 是(Yes): 覆盖旧条目\n- 否(No): 跳过此条目（保留旧的）\n- 取消(Cancel): 停止保存操作"
+                
+                choice = messagebox.askyesnocancel("发现重复论文", msg)
+                
+                if choice is None: # Cancel
+                    self.update_status("保存操作已取消")
+                    return
+                elif choice: # Yes, Overwrite
+                    # 在 merged_papers 中找到并替换
+                    for i, mp in enumerate(merged_papers):
+                        if is_same_identity(mp, paper):
+                            merged_papers[i] = paper
+                            break
+                else: # No, Skip
+                    continue
+            else:
+                # 新论文，直接添加
+                merged_papers.append(paper)
+
+        # 4. 统一验证最终列表
+        invalid_papers = []
+        for i, paper in enumerate(merged_papers):
+             valid, errors = paper.validate_paper_fields(
                 config,
                 check_required=True,
                 check_non_empty=True
             )
-            
-            if not valid:
-                invalid_papers.append((i+1, paper.title[:50], errors[:2]))
-        
+             if not valid:
+                 invalid_papers.append((i+1, paper.title[:50], errors[:2]))
+
         if invalid_papers:
-            error_msg = "以下论文验证失败:\n\n"
+            error_msg = "保存被阻止！合并后的列表中发现验证失败的论文:\n\n"
             for idx, title, errors in invalid_papers:
-                error_msg += f"{idx}. {title}...\n   - {', '.join(errors)}\n"
+                error_msg += f"#{idx} {title}...\n   - {', '.join(errors)}\n"
             
-            error_msg += "\n请修正错误后再保存。"
-            messagebox.showerror("错误", error_msg)
+            error_msg += "\n请检查并修正错误后再保存。"
+            messagebox.showerror("验证错误", error_msg)
             return
-        
-        # 准备数据（variable-keyed）
-        papers_data = [paper.to_dict() for paper in self.papers]
-        
-        # 使用update_utils规范化JSON内容
-        normalized_json = self.update_utils.normalize_json_papers(papers_data, config)
-        data = {
-            "papers": normalized_json,
-            "meta": {
-                "generated_at": get_current_timestamp()
-            }
-        }
-        
+
+        # 5. 保存到文件 (使用新封装的方法，自动处理 meta)
         try:
-            self.update_utils.write_json_file(self.update_json_path, data)
+            self.update_utils.save_papers_to_json(self.update_json_path, merged_papers)
         except Exception as e:
-            messagebox.showerror("错误", f"保存JSON失败: {e}")
+            messagebox.showerror("错误", f"保存JSON文件失败: {e}")
             return
         
-        messagebox.showinfo("成功", "所有论文已保存到更新文件")
-        self.update_status(f"已保存 {len(self.papers)} 篇论文到更新文件")
+        messagebox.showinfo("成功", f"成功保存 {len(merged_papers)} 篇论文到更新文件")
+        self.update_status(f"已更新文件: {self.update_json_path}")
     
     def submit_pr(self):
         """提交PR（模拟）"""

@@ -3,6 +3,7 @@
 通用工具函数
 """
 import urllib.parse
+import shutil
 import os
 import re
 import json
@@ -192,8 +193,83 @@ def validate_pipeline_image(path: str, figure_dir: str = "figures") -> Tuple[boo
     # 以分号分隔返回规范化后的路径
     return (True, ";".join(normalized_parts))
 
+def validate_date(date_str: Any) -> Tuple[bool, str]:
+    """
+    验证并规范化日期格式
+    流程：
+    1. 转换为字符串并去除空白
+    2. 尝试清洗（去除时分秒，统一分隔符）
+    3. 验证是否符合格式，支持日缺省和日月份缺省
+    
+    返回: (是否有效, 规范化后的日期字符串)
+    """
+    if date_str is None:
+        return (True, "")
+        
+    # 1. 转字符串并去除首尾空格
+    s_val = str(date_str).strip()
+    if not s_val:
+        return (True, "")
 
+    # 2. 去除时间部分
+    if ' ' in s_val:
+        s_val = s_val.split(' ')[0]
+    
+    original_val = s_val
 
+    try:
+        final_str = ""
+        
+        # 3. 统一分隔符：将 / 和 . 替换为 -
+        s_val = re.sub(r'[/\.]', '-', s_val)
+        
+        # 4. 处理纯数字格式
+        if s_val.isdigit():
+            if len(s_val) == 4:   # YYYY -> YYYY
+                final_str = s_val
+            elif len(s_val) == 6: # YYYYMM -> YYYY-MM
+                final_str = f"{s_val[:4]}-{s_val[4:]}"
+            elif len(s_val) == 8: # YYYYMMDD -> YYYY-MM-DD
+                final_str = f"{s_val[:4]}-{s_val[4:6]}-{s_val[6:]}"
+            else:
+                return (False, original_val)
+        
+        # 5. 处理带分隔符的格式
+        else:
+            parts = s_val.split('-')
+            # 过滤空串
+            parts = [p for p in parts if p]
+            
+            if not parts:
+                return (False, original_val)
+            
+            year = parts[0]
+            if len(year) != 4 or not year.isdigit():
+                return (False, original_val)
+
+            if len(parts) == 1:   # YYYY
+                final_str = year
+            elif len(parts) == 2: # YYYY-MM
+                month = int(parts[1])
+                if not (1 <= month <= 12): return (False, original_val)
+                final_str = f"{year}-{month:02d}"
+            elif len(parts) >= 3: # YYYY-MM-DD
+                month = int(parts[1])
+                day = int(parts[2])
+                # 利用 datetime 验证日期的合法性
+                try:
+                    datetime(int(year), month, day)
+                except ValueError:
+                    return (False, original_val)
+                final_str = f"{year}-{month:02d}-{day:02d}"
+            else:
+                return (False, original_val)
+
+        return (True, final_str)
+
+    except (ValueError, IndexError):
+        return (False, original_val)
+    
 def extract_doi_from_url(url: str) -> Optional[str]:
     """从URL中提取DOI"""
     if not url:
@@ -430,3 +506,44 @@ def figure_exists_in_repo(figure_path: str, project_root: str = None) -> bool:
     
     # 检查文件是否存在
     return os.path.isfile(full_path)
+
+
+def backup_file(filepath: str, backup_dir: str) -> Optional[str]:
+    """
+    统一备份文件函数
+    逻辑：原文件名(无后缀) + "__backup_" + timestamp + 后缀
+    例如：data.xlsx -> data__backup_20250101_120000.xlsx
+    
+    参数:
+        filepath: 源文件路径
+        backup_dir: 备份目录路径
+    
+    返回:
+        备份文件的完整路径，如果失败则返回 None
+    """
+    if not os.path.exists(filepath):
+        return None
+
+    try:
+        # 确保备份目录存在
+        ensure_directory(backup_dir)
+        
+        # 解析文件名
+        filename = os.path.basename(filepath)
+        name, ext = os.path.splitext(filename)
+        
+        # 生成时间戳
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # 构造备份文件名: 原名__backup_时间戳.后缀
+        backup_filename = f"{name}_backup_{timestamp}{ext}"
+        backup_path = os.path.join(backup_dir, backup_filename)
+        
+        # 执行复制
+        shutil.copy2(filepath, backup_path)
+        print(f"📦 [备份] {filename} 已备份至: {backup_path}")
+        return backup_path
+        
+    except Exception as e:
+        print(f"⚠️ 备份失败 {filepath}: {e}")
+        return None

@@ -66,7 +66,7 @@ TAGS_CONFIG = {
             "order": 3,                     # 不可更改，必须是3
             "table_name": "publish date",
             "display_name": "publish date",         #3个标签在readme列表中共用一列，使用[display_name]分割3个字段
-            "description": "论文发布时间",
+            "description": "论文发布时间，年-月-日、年/月/日、年-月-日、年.月.日、YYYYMMDD格式，支持day缺省，或month与day均缺省",
             "type": "string",
             "validation": None,
             "show_in_readme": True,

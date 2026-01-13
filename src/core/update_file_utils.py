@@ -1,7 +1,7 @@
 """
 更新文件工具模块
 统一处理模板文件（Excel和JSON）的读取、写入和移除操作
-只处理非系统字段
+对于json操作，保证不应使用任何非基础第三方包，以供submit_gui调用
 提供以下方法：
 read_json_file
 write_json_file
@@ -9,6 +9,7 @@ read_excel_file
 write_excel_file
 load_papers_from_excel
 load_papers_from_json
+save_papers_to_json  <-- 新增
 remove_papers_from_json
 remove_papers_from_excel
 persist_ai_generated_to_update_files
@@ -28,9 +29,8 @@ from dataclasses import asdict
 
 from src.core.config_loader import get_config_instance
 from src.core.database_model import Paper,is_same_identity, is_duplicate_paper
-from src.utils import (
-    ensure_directory,
-)
+# 导入统一的备份函数
+from src.utils import ensure_directory, backup_file, get_current_timestamp
 
 class UpdateFileUtils:
     """更新文件工具类"""
@@ -40,11 +40,14 @@ class UpdateFileUtils:
         self.settings = get_config_instance().settings
         self.update_excel_path = self.settings['paths']['update_excel']
         self.update_json_path = self.settings['paths']['update_json']
+        self.backup_dir = self.settings['paths']['backup_dir']
 
 
     def read_json_file(self,filepath: str) -> Optional[Dict]:
         """读取JSON文件"""
         try:
+            if not os.path.exists(filepath):
+                return None
             with open(filepath, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
@@ -107,6 +110,9 @@ class UpdateFileUtils:
         except Exception as e:
             print(f"写入Excel文件失败 {filepath}: {e}")
             return False
+        
+
+    
     def load_papers_from_excel(self, filepath: str = None) -> List[Paper]:
         """从Excel文件加载论文"""
 
@@ -120,7 +126,7 @@ class UpdateFileUtils:
         return self.excel_to_paper(df, only_non_system=True)
     
     def load_papers_from_json(self, filepath: str = None) -> List[Paper]:
-        """从JSON文件加载论文"""
+        """从JSON文件加载论文 (支持 {'papers': [...], 'meta': ...} 结构)"""
         if filepath is None:
             filepath = self.update_json_path
             
@@ -128,18 +134,61 @@ class UpdateFileUtils:
         if not data:
             return []
         
-        # 处理不同的JSON结构
-        if isinstance(data, dict) and 'papers' in data:
-            papers_data = data['papers']
+        # 提取论文列表数据
+        papers_data = []
+        if isinstance(data, dict):
+            # 新结构 or 旧结构(单对象)
+            if 'papers' in data and isinstance(data['papers'], list):
+                papers_data = data['papers']
+            else:
+                # 可能是单个论文对象或旧结构
+                # 检查是否看起来像论文数据（有doi或title）
+                if 'doi' in data or 'title' in data:
+                    papers_data = [data]
+                else:
+                    # 可能是空的 {'meta':...}
+                    papers_data = []
         elif isinstance(data, list):
+            # 旧结构(列表)
             papers_data = data
-        else:
-            papers_data = [data]
         
         return self.json_to_paper(papers_data, only_non_system=True)
     
+    def save_papers_to_json(self, filepath: str, papers: List[Paper]) -> bool:
+        """
+        保存论文列表到JSON文件，自动处理 meta 结构
+        结构: {'papers': [...], 'meta': {'generated_at': ...}}
+        """
+        try:
+            # 1. 尝试读取现有文件的 meta 信息以保留其他字段
+            existing_data = self.read_json_file(filepath)
+            meta = {}
+            if existing_data and isinstance(existing_data, dict) and 'meta' in existing_data:
+                meta = existing_data['meta']
+            
+            # 2. 更新 generated_at
+            meta['generated_at'] = get_current_timestamp()
+
+            # 3. 转换论文数据
+            papers_data = self.paper_to_json(papers)
+            if isinstance(papers_data, dict): # 如果只有一条数据paper_to_json可能返回dict，强制转list
+                papers_data = [papers_data]
+
+            # 4. 构建完整数据
+            final_data = {
+                "papers": papers_data,
+                "meta": meta
+            }
+
+            # 5. 写入
+            return self.write_json_file(filepath, final_data)
+
+        except Exception as e:
+            print(f"保存论文到JSON失败 {filepath}: {e}")
+            raise e
+
     def remove_papers_from_json(self, processed_papers: List[Paper], filepath: str = None):
-        """从JSON文件中移除已处理的论文（只处理非系统字段）"""
+        """从JSON文件中移除已处理的论文"""
         if filepath is None:
             filepath = self.update_json_path
             
@@ -147,59 +196,70 @@ class UpdateFileUtils:
         if not data:
             return
         
-
-        
-        # 收集已处理论文的DOI和标题用于匹配
-        processed_keys = []
+        # 1. 准备 Key 集合
+        processed_dois = set()
+        processed_titles = set()
         for paper in processed_papers:
-            key = paper.get_key()
-            if key:
-                processed_keys.append(key)
+            doi, title = paper.get_key()
+            if doi: processed_dois.add(doi)
+            if title: processed_titles.add(title)
         
-        # 根据数据结构类型进行过滤
-        if isinstance(data, list):
-            # 直接是论文列表
-            filtered_data = []
-            for item in data:
-                # 从item中提取DOI和标题构建key
-                doi = item.get('doi', '').strip()
-                title = item.get('title', '').strip()
-                item_key = f"{doi.lower()}|{title.lower()}" if doi else title.lower()
-                
-                # 如果不在已处理列表中，保留
-                if item_key not in processed_keys:
-                    filtered_data.append(item)
+        def should_remove(item: Dict) -> bool:
+            raw_doi = str(item.get('doi', '')).strip()
+            from src.utils import validate_doi
+            _, n_doi = validate_doi(raw_doi, check_format=False)
+            item_doi = n_doi.lower()
             
-            # 如果过滤后还有数据，写回文件，否则清空
-            if filtered_data:
-                # 保持原始列表结构
-                self.write_json_file(filepath, filtered_data)
-            else:
-                self.write_json_file(filepath, {})
+            item_title = str(item.get('title', '')).strip().lower()
+            
+            if item_doi and item_doi in processed_dois:
+                return True
+            if item_title and item_title in processed_titles:
+                return True
+            return False
         
+        # 2. 过滤数据
+        has_changes = False
+        new_data = None
+
+        if isinstance(data, list):
+            original_len = len(data)
+            filtered_data = [item for item in data if not should_remove(item)]
+            if len(filtered_data) < original_len:
+                has_changes = True
+                new_data = filtered_data
+            else:
+                new_data = data
+
         elif isinstance(data, dict) and 'papers' in data:
-            # 是包含papers字段的字典
             if isinstance(data['papers'], list):
-                filtered_papers = []
-                for item in data['papers']:
-                    doi = item.get('doi', '').strip()
-                    title = item.get('title', '').strip()
-                    item_key = f"{doi.lower()}|{title.lower()}" if doi else title.lower()
-                    
-                    if item_key not in processed_keys:
-                        filtered_papers.append(item)
-                
-                data['papers'] = filtered_papers
-                self.write_json_file(filepath, data)
-    
+                original_len = len(data['papers'])
+                filtered_papers = [item for item in data['papers'] if not should_remove(item)]
+                if len(filtered_papers) < original_len:
+                    has_changes = True
+                    data['papers'] = filtered_papers
+                    new_data = data
+                else:
+                    new_data = data
+
+        # 3. 备份并写入
+        if has_changes:
+            # 调用统一备份函数
+            backup_file(filepath, self.backup_dir)
+            
+            if isinstance(new_data, list):
+                self.write_json_file(filepath, new_data)
+            else:
+                self.write_json_file(filepath, new_data)
+
     def remove_papers_from_excel(self, processed_papers: List[Paper], filepath: str = None):
-        """从Excel文件中移除已处理的论文（只处理非系统字段）"""
+        """从Excel文件中移除已处理的论文"""
         try:
             import pandas as pd
-
         except Exception as e:
-            print( f"无法导入pandas依赖:{e}\n 注意如果要加载excel文件，你需要安装pandas依赖包")
+            print(f"无法导入pandas依赖:{e}")
             return
+            
         if filepath is None:
             filepath = self.update_excel_path
             
@@ -207,41 +267,57 @@ class UpdateFileUtils:
         if df is None or df.empty:
             return
         
-        # 收集已处理论文的DOI和标题用于匹配
-        processed_keys = []
+        # 1. 准备 Key 集合
+        processed_dois = set()
+        processed_titles = set()
         for paper in processed_papers:
-            key = paper.get_key()
-            if key:
-                processed_keys.append(key)
+            doi, title = paper.get_key()
+            if doi: processed_dois.add(doi)
+            if title: processed_titles.add(title)
         
-        # 过滤DataFrame
         rows_to_keep = []
-        for idx, row in df.iterrows():
-            # 从行中提取DOI和标题
-            doi = str(row.get('doi', '')).strip() if 'doi' in row and pd.notna(row.get('doi')) else ''
-            title = str(row.get('title', '')).strip() if 'title' in row and pd.notna(row.get('title')) else ''
-            row_key = f"{doi.lower()}|{title.lower()}" if doi else title.lower()
-            
-            # 如果不在已处理列表中，保留
-            if row_key not in processed_keys:
-                rows_to_keep.append(row)
-        
-        # 创建新的DataFrame
-        if rows_to_keep:
-            new_df = pd.DataFrame(rows_to_keep)
-            
-            self.write_excel_file(filepath, new_df)
-        else:
-            # 如果所有行都被处理，创建空DataFrame（只包含非系统字段）
-            empty_df = self.create_empty_update_file_df()
+        rows_removed_count = 0
 
-            self.write_excel_file(filepath, empty_df)
+        # 2. 过滤数据
+        for idx, row in df.iterrows():
+            raw_doi = str(row.get('doi', '')) if pd.notna(row.get('doi')) else ''
+            from src.utils import validate_doi
+            _, n_doi = validate_doi(raw_doi.strip(), check_format=False)
+            row_doi = n_doi.lower()
+            
+            raw_title = str(row.get('title', '')) if pd.notna(row.get('title')) else ''
+            row_title = raw_title.strip().lower()
+            
+            is_processed = False
+            if row_doi and row_doi in processed_dois:
+                is_processed = True
+            elif row_title and row_title in processed_titles:
+                is_processed = True
+            
+            if not is_processed:
+                rows_to_keep.append(row)
+            else:
+                rows_removed_count += 1
+        
+        # 3. 备份并写入
+        if rows_removed_count > 0:
+            # 调用统一备份函数
+            backup_file(filepath, self.backup_dir)
+            
+            if rows_to_keep:
+                new_df = pd.DataFrame(rows_to_keep)
+                new_df = self.normalize_update_file_columns(new_df)
+                self.write_excel_file(filepath, new_df)
+            else:
+                empty_df = self.create_empty_update_file_df()
+                self.write_excel_file(filepath, empty_df)
     
-    def persist_ai_generated_to_update_files(self, papers: List[Paper]):
+    def persist_ai_generated_to_update_files(self, papers: List[Paper], file_path: str):
         """
-        把 AI 生成的字段原样写回到更新文件（update_json 和 update_excel）。
+        把 AI 生成的字段原样写回到指定文件。
         只写回非系统字段。
         匹配策略：优先按 DOI 匹配，若 DOI 不存在则按 title（忽略大小写、首尾空白）匹配。
+        **修改：根据 file_path 的扩展名决定调用 JSON 还是 Excel 处理方法。**
         """
         if not papers:
             return
@@ -250,23 +326,32 @@ class UpdateFileUtils:
         ai_fields = ['title_translation', 'analogy_summary',
                     'summary_motivation', 'summary_innovation',
                     'summary_method', 'summary_conclusion', 'summary_limitation']
+        
+        # 扩展名检查
+        ext = os.path.splitext(file_path)[1].lower()
+        
         try:
-            # ---------- JSON 处理 ----------
-            self._persist_ai_to_json(papers, ai_fields)
+            if ext == '.json':
+                # ---------- JSON 处理 ----------
+                self._persist_ai_to_json(papers, ai_fields, file_path)
+            elif ext in ['.xlsx', '.xls']:
+                # ---------- Excel 处理 ----------
+                self._persist_ai_to_excel(papers, ai_fields, file_path)
+            else:
+                print(f"警告: 不支持的文件类型用于回写AI内容: {file_path}")
+                return
             
-            # ---------- Excel 处理 ----------
-            self._persist_ai_to_excel(papers, ai_fields)
-            print("已将AI生成内容回写到更新文件")
+            print(f"已将AI生成内容回写到更新文件: {file_path}")
         except Exception as e:
-            err = f"回写AI生成内容到更新文件失败: {e}"
+            err = f"回写AI生成内容到更新文件 {file_path} 失败: {e}"
             print(err)
             raise
     
-    def _persist_ai_to_json(self, papers: List[Paper], ai_fields: List[str]):
+    def _persist_ai_to_json(self, papers: List[Paper], ai_fields: List[str], file_path: str):
         try:
             
             # 读取现有数据并转换为Paper对象列表
-            json_data = self.read_json_file(self.update_json_path) or {}
+            json_data = self.read_json_file(file_path) or {}
             
             if 'papers' not in json_data:
                 json_data['papers'] = []
@@ -284,17 +369,16 @@ class UpdateFileUtils:
                                 setattr(existing_paper, field, new_value)
                         break
             
-            # 转换回JSON格式并保存
-            json_data['papers'] = self.paper_to_json(existing_papers)
-            self.write_json_file(self.update_json_path, json_data)
+            # 转换回JSON格式并保存，注意保留Meta
+            self.save_papers_to_json(file_path, existing_papers)
         
         except Exception as e:
             raise RuntimeError(f"写入更新JSON失败: {e}")
     
-    def _persist_ai_to_excel(self, papers: List[Paper], ai_fields: List[str]):
+    def _persist_ai_to_excel(self, papers: List[Paper], ai_fields: List[str], file_path: str):
         try:            
             # 读取现有数据
-            df = self.read_excel_file(self.update_excel_path)
+            df = self.read_excel_file(file_path)
             if df is None or df.empty:
                 return
             
@@ -314,7 +398,7 @@ class UpdateFileUtils:
             
             # 转换回DataFrame并保存
             new_df = self.paper_to_excel(existing_papers, only_non_system=True)
-            self.write_excel_file(self.update_excel_path, new_df)
+            self.write_excel_file(file_path, new_df)
             
         except Exception as e:
             raise RuntimeError(f"写入更新Excel失败: {e}")
@@ -398,7 +482,12 @@ class UpdateFileUtils:
             return False
 
         if filepath is None:
+            # 默认只处理基础的 excel 路径，如果需要处理其他路径，调用者应传入 filepath
             filepath = self.update_excel_path
+
+        # 检查文件扩展名，只处理Excel
+        if not (filepath.endswith('.xlsx') or filepath.endswith('.xls')):
+            return False
 
         df = self.read_excel_file(filepath)
         if df is None or df.empty:
@@ -985,7 +1074,7 @@ class UpdateFileUtils:
         def norm(c): return (c or '').lstrip('#')[:6].upper() if c else ''
         return ('#' + norm(header), '#' + norm(required), '#' + norm(req_font))
 
-    def apply_excel_formatting(self, workbook, worksheet, df):
+    def apply_excel_formatting(self, workbook, worksheet, df,auto_enter=False):
         """对Excel应用列宽、表头格式等美化"""
         try:
             from openpyxl.styles import PatternFill, Font
@@ -1027,6 +1116,14 @@ class UpdateFileUtils:
                 cell = worksheet[f"{col_letter}1"]
                 cell.fill = required_fill
                 cell.font = required_font
+        # 强制所有数据单元格为文本格式 
+        # min_row=2 表示跳过表头，从数据行开始
+        if worksheet.max_row >= 2:
+            for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row, 
+                                         min_col=1, max_col=worksheet.max_column):
+                for cell in row:
+                    # '@' 是 Excel 的文本格式代码
+                    cell.number_format = '@'
 
         # 设置列宽 - 修复列宽计算问题
         for column in df.columns:
@@ -1054,11 +1151,11 @@ class UpdateFileUtils:
         # 确保所有行都可见（解除隐藏）
         worksheet.sheet_format.defaultRowHeight = 15
         
-        # 确保单元格格式设置为自动换行，这样内容不会被隐藏
+        # 设置单元格自动换行格式
         for row in worksheet.iter_rows(min_row=1, max_row=worksheet.max_row, 
                                     min_col=1, max_col=worksheet.max_column):
             for cell in row:
-                cell.alignment = cell.alignment.copy(wrapText=True)
+                cell.alignment = cell.alignment.copy(wrapText=auto_enter)
 
 # 创建全局单例
 _update_file_utils_instance = None

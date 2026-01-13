@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../'))
 from src.core.config_loader import get_config_instance
 from src.core.database_model import Paper, is_same_identity, is_duplicate_paper
 from src.core.update_file_utils import get_update_file_utils
+from src.utils import backup_file
 
 
 class DatabaseManager:
@@ -35,18 +36,7 @@ class DatabaseManager:
         os.makedirs(os.path.dirname(self.core_excel_path), exist_ok=True)
         os.makedirs(self.backup_dir, exist_ok=True)
     
-    def backup_database(self) -> str:
-        """备份数据库，返回备份文件路径"""
-        if not os.path.exists(self.core_excel_path):
-            return ""
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_filename = f"paper_database_backup_{timestamp}.xlsx"
-        backup_path = os.path.join(self.backup_dir, backup_filename)
-        
-        shutil.copy2(self.core_excel_path, backup_path)
-        print(f"数据库已备份到: {backup_path}")
-        return backup_path
+
     
     def load_database(self) -> pd.DataFrame:
         """加载数据库到DataFrame"""
@@ -106,7 +96,7 @@ class DatabaseManager:
             df = self.update_utils.normalize_dataframe_columns(df, self.config)
 
             # 备份原文件
-            self.backup_database()
+            backup_file(self.core_excel_path, self.backup_dir)
             
             # 保存到Excel
             with pd.ExcelWriter(

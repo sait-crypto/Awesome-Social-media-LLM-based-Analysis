@@ -1,6 +1,7 @@
 """
 数据库模型
 定义论文数据模型
+该脚本不应使用任何非基础第三方包，以供submit_gui调用
 """
 from dataclasses import dataclass, field, asdict, fields
 from typing import Dict, List, Optional, Union, Any, Tuple
@@ -18,7 +19,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../'))
 # 导入工具函数
 from src.utils import (
     validate_url, validate_doi, clean_doi, format_authors,
-    validate_authors, normalize_pipeline_image, validate_pipeline_image,
+    validate_authors, normalize_pipeline_image, validate_pipeline_image,validate_date,
     get_current_timestamp
 )
 
@@ -75,6 +76,11 @@ class Paper:
         if self.pipeline_image:
             figure_dir = config.settings['paths'].get('figure_dir', 'figures')
             self.pipeline_image = normalize_pipeline_image(self.pipeline_image, figure_dir)
+
+        # 规范化 Date (Publish Date)
+        if self.date:
+            _, normalized_date = validate_date(self.date)
+            self.date = normalized_date
     
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
@@ -87,10 +93,20 @@ class Paper:
         filtered_data = {k: v for k, v in data.items() if k in valid_fields}
         return cls(**filtered_data)
     
-    def get_key(self) -> str:
-        """获取论文的唯一键（用于比较和去重）"""
-        return f"{self.doi}_{self.title}"
+    def get_key(self) -> tuple[str, str]:
+        """
+        获取论文的唯一键，用于论文唯一标识和匹配
+        注意返回格式: tuple : doi,title,均保持小写，注意不要写回
+        """
+        # 收集已处理论文的 Key (全小写，与读取时保持一致)
+        _p_doi = str(self.doi).strip() if self.doi else ""
+        _,normalized_doi=validate_doi(str(_p_doi),check_format=False)
+        p_doi = normalized_doi.lower()
+
+        p_title = str(self.title).strip().lower() if self.title else ""
+        return p_doi,p_title
     
+    # 统一的论文字段验证函数，流程：统一规范化->验证
     def validate_paper_fields(
         self, 
         config_instance,
@@ -99,6 +115,7 @@ class Paper:
     ) -> Tuple[bool, List[str]]:
         """
         统一的论文字段验证函数
+        流程：统一规范化->验证
         
         参数:
             config_instance: 配置实例
@@ -145,6 +162,12 @@ class Paper:
         if self.project_url and not validate_url(self.project_url) and check_non_empty:
             errors.append(f"项目链接格式无效: {self.project_url}")
         
+        # 日期验证
+        if self.date:
+            date_valid, formatted_date = validate_date(self.date)
+            if not date_valid and check_non_empty:
+                errors.append(f"日期格式无效: {self.date} (应为 YYYY-MM-DD)")
+                
         # 2. 必填字段检查
         if check_required:
             for tag in required_tags:
@@ -199,9 +222,10 @@ class Paper:
         
         return (len(errors) == 0, errors)
     
+    # 检查时，注意看看和这个函数有没有必要存在
     def is_valid(self, config_instance = None) -> List[str]:
         """
-        兼容性方法，调用新的验证函数
+        兼容性方法，validate_paper_fields套壳，调用新的验证函数
         """
         if not config_instance:
             from src.core.config_loader import get_config_instance
@@ -215,46 +239,30 @@ class Paper:
         return errors
 
 
-def _normalize_doi_for_compare(doi: Optional[str]) -> str:
-    """清理 DOI 并忽略可能存在的冲突标记"""
-    from src.core.config_loader import get_config_instance
-    config = get_config_instance()
-    conflict_marker = config.settings['database'].get('conflict_marker', '[💥冲突]')
-    
-    if not doi:
-        return ""
-    
-    s = str(doi).strip()
-    if conflict_marker:
-        s = s.replace(conflict_marker, "")
-    
-    # 清理URL部分
-    s = clean_doi(s, conflict_marker)
-    return s.lower()
-
-
-# ... (is_same_identity, _papers_fields_equal, is_duplicate_paper 函数保持不变)
-
+# Paper对象间级方法
 def is_same_identity(a: Union[Paper, Dict[str, Any]], b: Union[Paper, Dict[str, Any]]) -> bool:
     """
     判断 a 和 b 是否表示同一篇论文（基于 DOI 或 title）。
-    DOI 比较时会忽略 conflict_marker。
-    支持 Paper 对象或 dict。
     """
-    
-    def get_field(x, name):
-        if isinstance(x, Paper):
-            return getattr(x, name, "") or ""
-        return x.get(name, "") if isinstance(x, dict) else ""
+    def extract_key(obj) -> Tuple[str, str]:
+        if isinstance(obj, Paper):
+            return obj.get_key()
+        else:
+            # 如果是字典，模拟 Paper.get_key 的逻辑
+            raw_doi = obj.get('doi', "")
+            raw_title = obj.get('title', "")
+            
+            # 使用 utils 中的函数进行与 Paper.get_key 一致的处理
+            _, n_doi = validate_doi(str(raw_doi).strip(), check_format=False)
+            n_title = str(raw_title).strip().lower()
+            return n_doi.lower(), n_title
 
-    doi_a = _normalize_doi_for_compare(get_field(a, 'doi') )
-    doi_b = _normalize_doi_for_compare(get_field(b, 'doi') )
-    if doi_a and doi_b and doi_a == doi_b:
+    key_a_doi, key_a_title = extract_key(a)
+    key_b_doi, key_b_title = extract_key(b)
+
+    if key_a_title and key_b_title and key_a_title == key_b_title:
         return True
-
-    title_a = (get_field(a, 'title') or "").strip().lower()
-    title_b = (get_field(b, 'title') or "").strip().lower()
-    if title_a and title_b and title_a == title_b:
+    if key_a_doi and key_b_doi and key_a_doi == key_b_doi:
         return True
 
     return False
@@ -291,8 +299,9 @@ def _papers_fields_equal(new: Union[Paper, Dict[str, Any]], exist: Union[Paper, 
         b_dict = dict(exist)
 
     # 规范化 DOI 比较：移除 conflict_marker 并清理
-    a_doi = _normalize_doi_for_compare(a_dict.get('doi', ""))
-    b_doi = _normalize_doi_for_compare(b_dict.get('doi', ""))
+    _,a_doi = validate_doi(a_dict.get('doi', ""),check_format=False)
+    _,b_doi = validate_doi(b_dict.get('doi', ""),check_format=False)
+
     a_dict['doi'] = a_doi
     b_dict['doi'] = b_doi
 

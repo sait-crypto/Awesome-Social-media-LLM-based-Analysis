@@ -22,11 +22,12 @@ class AIGenerator:
         self.update_utils = get_update_file_utils()
 
         # 兼容配置项为 bool 或 str 的情况；确保得到布尔值
-        enable_val = self.settings['ai'].get('enable_ai_generation', True)
+        enable_val = self.settings['ai'].get('enable_ai_generation', 'true')
         try:
             self.enabled = str(enable_val).lower() == 'true'
-        except Exception:
+        except:
             self.enabled = bool(enable_val)
+            
         self.api_key = self._get_api_key()
         self.api_url = "https://api.deepseek.com/v1/chat/completions"
         self.max_retries = 3
@@ -195,7 +196,7 @@ class AIGenerator:
         # 3. 方法精炼
         method_prompt = f"""{preprompt}
 
-你的分工：请精炼总结并直接给出这篇论文的核心方法（35字以内，能短尽量短）："""
+你的分工：请精炼总结并直接给出这篇论文的核心方法（45字以内，能短尽量短）："""
         if field == 'summary_method':
             method = self._call_api(method_prompt, max_tokens=80)
             if method:
