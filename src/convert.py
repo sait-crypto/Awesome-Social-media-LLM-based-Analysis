@@ -46,7 +46,13 @@ class ReadmeGenerator:
             self.enable_markdown = bool(markdown_val)
 
     def generate_readme_tables(self) -> str:
-        """生成README的论文表格部分"""
+        """生成README的论文表格部分
+
+        现在按照一级/二级分类组织输出：
+        - 一级分类（primary_category 为 None）作为分组头，前面加一个额外的标注
+        - 对应的二级分类会在其下面显示（保持原有 '###' 级别），并只列出有论文的分类
+        - 若一级分类本身包含论文，则在一级标题下先显示这些论文表格
+        """
         # 加载数据库
         df = self.db_manager.load_database()
         # 若开启翻译截断，在生成 README 之前，确保所有字段在 "翻译分隔符" 之前截断
@@ -59,22 +65,58 @@ class ReadmeGenerator:
         # 按分类分组
         papers_by_category = self._group_papers_by_category(papers)
         
-        # 生成Markdown表格
+        # 生成Markdown表格（按一级分类组织）
         markdown_output = ""
-        
-        for category in self.config.get_active_categories():
-            category_name = category['name']
-            category_papers = papers_by_category.get(category['unique_name'], [])
-            
-            if not category_papers:
+
+        cats = [c for c in self.config.get_active_categories() if c.get('enabled', True)]
+        # 构建父 -> 子 的映射（主键使用 order）
+        children_map = {}
+        parents = []
+        for c in cats:
+            p = c.get('primary_category')
+            if p is None:
+                parents.append(c)
+            else:
+                children_map.setdefault(p, []).append(c)
+
+        # 按 order 排序父和子
+        parents = sorted(parents, key=lambda x: x.get('order', 0))
+        for k in children_map:
+            children_map[k] = sorted(children_map[k], key=lambda x: x.get('order', 0))
+
+        for parent in parents:
+            parent_name = parent.get('name', parent.get('unique_name'))
+            parent_key = parent.get('unique_name')
+            # 收集该父类以及其所有子类是否有论文
+            parent_papers = papers_by_category.get(parent_key, [])
+            child_list = children_map.get(parent.get('order'), [])
+
+            # 先检查是否有任何论文需要显示（父或子有任意一个有论文则显示此父分组）
+            has_any = bool(parent_papers)
+            for child in child_list:
+                if papers_by_category.get(child.get('unique_name')):
+                    has_any = True
+                    break
+
+            if not has_any:
                 continue
-            
-            # 添加分类标题
-            markdown_output += f"\n### {category_name}\n\n"
-            
-            # 生成表格
-            markdown_output += self._generate_category_table(category_papers)
-        
+
+            # 添加一级分类标题
+            markdown_output += f"\n### >{parent_name}\n\n"
+
+            # 若父类本身有论文，先显示父类表格
+            if parent_papers:
+                markdown_output += self._generate_category_table(parent_papers)
+
+            # 依次显示每个二级分类（保持原来的 ### 级别）
+            for child in child_list:
+                child_name = child.get('name', child.get('unique_name'))
+                child_papers = papers_by_category.get(child.get('unique_name'), [])
+                if not child_papers:
+                    continue
+                markdown_output += f"\n### {child_name}\n\n"
+                markdown_output += self._generate_category_table(child_papers)
+
         return markdown_output
     
     def _slug(self, name: str) -> str:
@@ -84,15 +126,43 @@ class ReadmeGenerator:
         return re.sub(r'\s+', '-', s)
     
     def _generate_quick_links(self) -> str:
-        """根据 categories 配置生成 Quick Links 列表（插入到表格前）"""
+        """根据 categories 配置生成 Quick Links 列表（插入到表格前）
+
+        支持两级分类：
+        - 一级分类（primary_category 为 None）作为父条目列出
+        - 二级分类（primary_category 指向父分类的 order）会被放在对应一级分类下，换行并缩进显示
+        """
         cats = [c for c in self.config.get_active_categories() if c.get('enabled', True)]
         if not cats:
             return ""
-        lines = ["### Quick Links", ""]
+
+        # 构建父 -> 子 的映射（按 order 排序）
+        children_map = {}
+        parents = []
         for c in cats:
-            name = c.get('name', c.get('unique_name'))
+            p = c.get('primary_category')
+            if p is None:
+                parents.append(c)
+            else:
+                children_map.setdefault(p, []).append(c)
+
+        # 按 order 排序父和子
+        parents = sorted(parents, key=lambda x: x.get('order', 0))
+        for k in children_map:
+            children_map[k] = sorted(children_map[k], key=lambda x: x.get('order', 0))
+
+        lines = ["### Quick Links", ""]
+        for parent in parents:
+            name = parent.get('name', parent.get('unique_name'))
             anchor = self._slug(name)
+            # 顶级分类前置两个空格以保持与历史样式一致
             lines.append(f"  - [{name}](#{anchor})")
+            # 添加二级分类（若有），每个子项换行并缩进（再加两个空格）
+            for child in children_map.get(parent.get('order'), []):
+                child_name = child.get('name', child.get('unique_name'))
+                child_anchor = self._slug(child_name)
+                lines.append(f"    - [{child_name}](#{child_anchor})")
+
         return "\n".join(lines)
     
     def _group_papers_by_category(self, papers: List[Paper]) -> Dict[str, List[Paper]]:

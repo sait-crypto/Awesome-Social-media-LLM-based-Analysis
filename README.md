@@ -17,24 +17,30 @@
 ### Quick Links
 
   - [Uncategorized](#Uncategorized)
-  - [Hate Speech Analysis](#Hate-Speech-Analysis)
-  - [Sentiment Analysis](#Sentiment-Analysis)
-  - [Misinformation Analysis](#Misinformation-Analysis)
-  - [Meme Analysis](#Meme-Analysis)
-  - [Steganography Detection](#Steganography-Detection)
-  - [Event Extraction](#Event-Extraction)
-  - [Topic Modeling](#Topic-Modeling)
-  - [User Opinion Mining](#User-Opinion-Mining)
-  - [User Profiling](#User-Profiling)
-  - [User Behavior Prediction](#User-Behavior-Prediction)
-  - [Social Content Generation](#Social-Content-Generation)
-  - [Information Diffusion Analysis](#Information-Diffusion-Analysis)
-  - [Macrosocial Phenomena Analysis](#Macrosocial-Phenomena-Analysis)
-  - [Social Simulation](#Social-Simulation)
-  - [Malicious Bot Detection](#Malicious-Bot-Detection)
-  - [Community Detection](#Community-Detection)
-  - [Dynamic Community Analysis](#Dynamic-Community-Analysis)
+  - [Perception and Classification](#Perception-and-Classification)
+    - [Hate Speech Analysis](#Hate-Speech-Analysis)
+    - [Sentiment Analysis](#Sentiment-Analysis)
+    - [Misinformation Analysis](#Misinformation-Analysis)
+    - [Meme Analysis](#Meme-Analysis)
+    - [Steganography Detection](#Steganography-Detection)
+    - [User Opinion Mining](#User-Opinion-Mining)
+    - [User Behavior Prediction](#User-Behavior-Prediction)
+    - [Malicious Bot Detection](#Malicious-Bot-Detection)
+    - [Community Detection](#Community-Detection)
+  - [Cognition and Generation](#Cognition-and-Generation)
+    - [Event Extraction](#Event-Extraction)
+    - [Topic Modeling](#Topic-Modeling)
+    - [User Profiling](#User-Profiling)
+    - [Social Content Generation](#Social-Content-Generation)
+  - [Simulation and Deduction](#Simulation-and-Deduction)
+    - [Information Diffusion Analysis](#Information-Diffusion-Analysis)
+    - [Macrosocial Phenomena Analysis](#Macrosocial-Phenomena-Analysis)
+    - [Social Simulation](#Social-Simulation)
+    - [Dynamic Community Analysis](#Dynamic-Community-Analysis)
   - [Other](#Other)
+
+
+### >Perception and Classification
 
 
 ### Hate Speech Analysis
@@ -59,13 +65,16 @@
 | [![Publish](https://img.shields.io/badge/Conference-Companion_Proceedings_of_the_Web_Conference_2021-blue)]()<br>[How does truth evolve into fake news? An empirical study of fake news evolution](https://dl.acm.org/doi/10.1145/3442442.3452328) <br> Mingfei Guo，Xiuying Chen，Juntao Li，Dongyan Zhao，Rui Yan <br> 2021-06-03|一个包含[原始新闻、假新闻、演化后的假新闻]三元组的数据集|<img width="1200" alt="pipeline" src="figures/FNE.png">| <div style="line-height: 1.05;font-size: 0.8em"> <details><summary title="**[motivation]** 而现有数据集多关注静态标注，缺乏对其假新闻演化过程的研究 **[innovation]** 给出了关注假新闻演化的数据集FNE，包含“真相-虚假新闻-演化虚假新闻”三元组 **[method]** 1. 从 Snopes.com(一个辟谣网站) 抓取truth文章； 2. 通过其引文收集虚假新闻； 3. 利用网页存档平台（如 Archive Today）获取演化后版本； 4. 分析虚假信息技术分类（捏造、否认、混淆、歪曲四类、文本相似度、关键词、词性、情感等属性。 **[conclusion/contribution]** 演化后虚假新闻与原始虚假新闻相似度更高，情感更客观积极，更难以被现有分类模型检测；虚假信息技术中以“捏造”为主；词性和关键词在演化中保持稳定。 **[limitation/future]** 数据来源依赖单一事实核查网站（Snopes），可能引入偏见；仅关注文本新闻，未涵盖图像、视频等多模态演变；">**[summary]**</summary><div style="margin-top:6px">**[motivation]** 而现有数据集多关注静态标注，缺乏对其假新闻演化过程的研究<br>**[innovation]** 给出了关注假新闻演化的数据集FNE，包含“真相-虚假新闻-演化虚假新闻”三元组<br>**[method]** 1. 从 Snopes.com(一个辟谣网站) 抓取truth文章；<br>2. 通过其引文收集虚假新闻；<br>3. 利用网页存档平台（如 Archive Today）获取演化后版本；<br>4. 分析虚假信息技术分类（捏造、否认、混淆、歪曲四类、文本相似度、关键词、词性、情感等属性。<br>**[conclusion/contribution]** 演化后虚假新闻与原始虚假新闻相似度更高，情感更客观积极，更难以被现有分类模型检测；虚假信息技术中以“捏造”为主；词性和关键词在演化中保持稳定。<br>**[limitation/future]** 数据来源依赖单一事实核查网站（Snopes），可能引入偏见；仅关注文本新闻，未涵盖图像、视频等多模态演变；</div></details></div>|
 | [![Publish](https://img.shields.io/badge/Conference-Proceedings_of_the_AAAI_Conference_on_Artificial_Intelligence-blue)]()<br>[Learning Complex Heterogeneous Multimodal Fake News via Social Latent Network Inference](https://ojs.aaai.org/index.php/AAAI/article/view/32022) <br> Mingxin Li,Yuchen Zhang,Haowei Xu,Xianghua Li\*,Chao Gao,Zhen Wang <br> 2025-04-11|通过社交潜在网络推断与自监督多模态学习检测复杂异质多模态假新闻的GNN方法|<img width="1200" alt="pipeline" src="figures/HML.png">| <div style="line-height: 1.05;font-size: 0.8em"> <details><summary title="**[motivation]** 社交平台多元化导致新闻传播复杂、多模态，传统假新闻检测方法依赖显式传播关系（如转发），在抖音等平台难以直接获取，检测难度大。 **[innovation]** 提出“社交潜在网络推断Latent Network Inference”策略，无需真实传播关系，即可构建新闻间的潜在联系 **[method]** 1. 社交潜在网络推断：基于Hawkes Process建模新闻影响力随时间变化，得到事件内部与事件间的影响强度，推断出潜在传播网络。 2. 异质图构建：节点均为新闻，边类型基于各种相同或相似属性（如作者、标题、时间等）构建。使用**注意力机制**动态融合不同边类型，生成统一的异质图表示（每个类型的边看做一个“头”，利用多头注意力方法） 3. 自监督多模态内容学习：损失函数：单模态增强（对同一模态进行掩码与重构）、跨模态对比学习（对齐不同模态（如文本与视频）的特征，通过对比学习拉近正样本、推开负样本） 4. 个性化图表示与分类：使用图Transformer Encoder融合图结构与模态特征，进行分类。 **[conclusion/contribution]** FakeSV和FVC数据集上准确率均超89%，较SOTA提升0.12%~4.39%；在Twitter/微博作为插件也提升明显（最高+10.71% F1） **[limitation/future]** 依赖事件定义与时间序列假设，对实时性要求高；计算复杂度较高">**[summary]**</summary><div style="margin-top:6px">**[motivation]** 社交平台多元化导致新闻传播复杂、多模态，传统假新闻检测方法依赖显式传播关系（如转发），在抖音等平台难以直接获取，检测难度大。<br>**[innovation]** 提出“社交潜在网络推断Latent Network Inference”策略，无需真实传播关系，即可构建新闻间的潜在联系<br>**[method]** 1. 社交潜在网络推断：基于Hawkes Process建模新闻影响力随时间变化，得到事件内部与事件间的影响强度，推断出潜在传播网络。<br>2. 异质图构建：节点均为新闻，边类型基于各种相同或相似属性（如作者、标题、时间等）构建。使用**注意力机制**动态融合不同边类型，生成统一的异质图表示（每个类型的边看做一个“头”，利用多头注意力方法）<br>3. 自监督多模态内容学习：损失函数：单模态增强（对同一模态进行掩码与重构）、跨模态对比学习（对齐不同模态（如文本与视频）的特征，通过对比学习拉近正样本、推开负样本）<br>4. 个性化图表示与分类：使用图Transformer Encoder融合图结构与模态特征，进行分类。<br>**[conclusion/contribution]** FakeSV和FVC数据集上准确率均超89%，较SOTA提升0.12%~4.39%；在Twitter/微博作为插件也提升明显（最高+10.71% F1）<br>**[limitation/future]** 依赖事件定义与时间序列假设，对实时性要求高；计算复杂度较高</div></details></div>|
 
+### >Cognition and Generation
+
+
 ### Event Extraction
 
 | Title & Info | Analogy Summary | Pipeline | Summary |
 |:--| :---: | :----: | :---: |
 | [![Publish](https://img.shields.io/badge/Conference-Proceedings_of_the_2023_Conference_on_Empirical_Methods_in_Natural_Language_Processing-blue)]()<br>[Event causality extraction via implicit cause-effect interactions](https://aclanthology.org/2023.emnlp-main.420) <br> Jintao Liu,Zequn Zhang,Kaiwen Wei,Zhi Guo,Xian Sun,Li Jin,Xiaoyu Li <br> 2023|通过OT强制学生模型与教师模型对齐|<img width="1200" alt="pipeline" src="figures/ICE.png">| <div style="line-height: 1.05;font-size: 0.8em"> <details><summary title="**[motivation]** 现有ECE（事件因果关系抽取）方式没有充分利用原因事件和结果事件之间的相互作用。这本可以为因果关系推理提供关键线索 **[innovation]** 论文解耦ECE的两个任务（论元抽取、结果事件预测），并使用OT进行教师模型和学生模型的细粒度对齐，增强了因果事件之间的隐式联系 **[method]** 基于模板的条件生成（输入基于模板附有特定特权信息的prompt，使预训练模型BART（基于transformer）输出基于模板的结构化的文本，用于后续微调）-&gt;教师-学生知识蒸馏（微调了两个教师模型负责不同任务：事件论元抽取、结果事件预测）-&gt;因果最优传输CEOT（相关损失并入蒸馏损失，参与蒸馏训练，学生模型与教师模型细粒度对齐） **[conclusion/contribution]** ECE任务中显著提升了性能，ECE-CCKS数据集上比此前最优方法F1值提高了8.39% **[limitation/future]** 多教师蒸馏机制和复杂的OT计算显著增加了模型训练阶段的成本">**[summary]**</summary><div style="margin-top:6px">**[motivation]** 现有ECE（事件因果关系抽取）方式没有充分利用原因事件和结果事件之间的相互作用。这本可以为因果关系推理提供关键线索<br>**[innovation]** 论文解耦ECE的两个任务（论元抽取、结果事件预测），并使用OT进行教师模型和学生模型的细粒度对齐，增强了因果事件之间的隐式联系<br>**[method]** 基于模板的条件生成（输入基于模板附有特定特权信息的prompt，使预训练模型BART（基于transformer）输出基于模板的结构化的文本，用于后续微调）->教师-学生知识蒸馏（微调了两个教师模型负责不同任务：事件论元抽取、结果事件预测）->因果最优传输CEOT（相关损失并入蒸馏损失，参与蒸馏训练，学生模型与教师模型细粒度对齐）<br>**[conclusion/contribution]** ECE任务中显著提升了性能，ECE-CCKS数据集上比此前最优方法F1值提高了8.39%<br>**[limitation/future]** 多教师蒸馏机制和复杂的OT计算显著增加了模型训练阶段的成本</div></details><div style="margin-top:6px"><details><summary>**[notes]**</summary><div style="margin-top:6px">❔这个方法为什么可以解决问题？<br>    核心方法是使用优秀的专家模型对小模型进行微调，结合了5个小损失函数（两个来源于OT），以尽可能保证知识迁移效果<br><br>❔有什么值得注意的细节吗？<br>    📝论文为什么选择训练两个承担不同任务的教师模型，一起蒸馏出目标模型的方法<br>        这几乎是进行微调特化用于该下游任务的必然选择<br>        因为需要训练两个能力（子任务）：文本论元抽取能力（事件内交互）和事件结果联系能力（事件间）<br>        两个子任务需要分别调整数据集的输入，为他们分配不同的特权信息，从而避免混淆和出现“作弊”（看到这个子任务不应看到的特权信息）</div></details></div></div>|
 
-### Other
+### >Other
 
 | Title & Info | Analogy Summary | Pipeline | Summary |
 |:--| :---: | :----: | :---: |

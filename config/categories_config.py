@@ -13,120 +13,166 @@ CATEGORIES_CONFIG = {
     
     # 分类列表，按order排序
     "categories": [
+
+        # ============一级分类===============
         {
             "unique_name": "Uncategorized",
             "order": 0,                     # 排序顺序，0为第一个
             "name": "Uncategorized",  # 显示名称
+            "primary_category": None,# 所属一级分类，None表示本身为一级分类
             "enabled": True,                # 是否启用该分类
         },
+
+        {
+            "unique_name": "Perception and Classification",
+            "order": 100,                     # 排序顺序，0为第一个
+            "name": "Perception and Classification",  # 显示名称
+            "primary_category": None,# None表示本身为1级分类
+            "enabled": True,                # 是否启用该分类
+        },
+        {
+            "unique_name": "Cognition and Generation",
+            "order": 101,                     # 排序顺序，0为第一个
+            "name": "Cognition and Generation",  # 显示名称
+            "primary_category": None,# None表示本身为1级分类
+            "enabled": True,                # 是否启用该分类
+        },
+        {
+            "unique_name": "Simulation and Deduction",
+            "order": 102,                     # 排序顺序，0为第一个
+            "name": "Simulation and Deduction",  # 显示名称
+            "primary_category": None,# None表示本身为1级分类
+            "enabled": True,                # 是否启用该分类
+        },
+        {
+            "unique_name": "Other",
+            "order": 200,
+            "name": "Other",
+            "primary_category": None,# None表示本身为1级分类
+            "enabled": True,
+        },
+        
+        # ============二级分类===============
         {
             "unique_name": "Hate Speech Analysis",
             "order": 1,                     
             "name": "Hate Speech Analysis",  # 显示名称
+            "primary_category": 100,# 所属一级分类，用一级分类的order表示
             "enabled": True,                # 是否启用该分类
         },
         {
             "unique_name": "Sentiment Analysis",
             "order": 2,
             "name": "Sentiment Analysis",
+            "primary_category": 100,# 所属一级分类，用一级分类的order表示
             "enabled": True,
         },
         {
             "unique_name": "Misinformation Analysis",
             "order": 3,
             "name": "Misinformation Analysis",
+            "primary_category": 100,# 所属一级分类，用一级分类的order表示
             "enabled": True,
         },
         {
             "unique_name": "Multimodal Analysis",
             "order": 4,
             "name": "Meme Analysis",
+            "primary_category": 100,# 所属一级分类，用一级分类的order表示
             "enabled": True,
         },
         {
             "unique_name": "Steganography Detection",
             "order": 5,
             "name": "Steganography Detection",
+            "primary_category": 100,# 所属一级分类，用一级分类的order表示
             "enabled": True,
         },
         {
             "unique_name": "Event Extraction",
             "order": 6,
             "name": "Event Extraction",
+            "primary_category": 101,# 所属一级分类，用一级分类的order表示
             "enabled": True,
         },
         {
             "unique_name": "Topic Modeling",
             "order": 7,
             "name": "Topic Modeling",
+            "primary_category": 101,# 所属一级分类，用一级分类的order表示
             "enabled": True,
         },
         {
             "unique_name": "User Opinion Mining",
             "order": 8,
             "name": "User Opinion Mining",
+            "primary_category": 100,# 所属一级分类，用一级分类的order表示
             "enabled": True,
         },
         {
             "unique_name": "User Profiling",
             "order": 9,
             "name": "User Profiling",
+            "primary_category": 101,# 所属一级分类，用一级分类的order表示
             "enabled": True,
         },
         {
             "unique_name": "User Behavior Prediction",
             "order": 10,
             "name": "User Behavior Prediction",
+            "primary_category": 100,# 所属一级分类，用一级分类的order表示
             "enabled": True,
         },
         {
             "unique_name": "Social Content Generation",
             "order": 11,
             "name": "Social Content Generation",
+            "primary_category": 101,# 所属一级分类，用一级分类的order表示
             "enabled": True,
         },
         {
             "unique_name": "Information Diffusion Analysis",
             "order": 12,
             "name": "Information Diffusion Analysis",
+            "primary_category": 102,# 所属一级分类，用一级分类的order表示
             "enabled": True,
         },
         {
             "unique_name": "Macrosocial Phenomena Analysis",
             "order": 13,
             "name": "Macrosocial Phenomena Analysis",
+            "primary_category": 102,# 所属一级分类，用一级分类的order表示
             "enabled": True,
         },
         {
             "unique_name": "Social Simulation",
             "order": 14,
             "name": "Social Simulation",
+            "primary_category": 102,# 所属一级分类，用一级分类的order表示
             "enabled": True,
         },
         {
             "unique_name": "Malicious Bot Detection",
             "order": 15,
             "name": "Malicious Bot Detection",
+            "primary_category": 100,# 所属一级分类，用一级分类的order表示
             "enabled": True,
         },
         {
             "unique_name": "Community Detection",
             "order": 16,
             "name": "Community Detection",
+            "primary_category": 100,# 所属一级分类，用一级分类的order表示
             "enabled": True,
         },
         {
             "unique_name": "Dynamic Community Analysis",
             "order": 17,
             "name": "Dynamic Community Analysis",
+            "primary_category": 102,# 所属一级分类，用一级分类的order表示
             "enabled": True,
         },
-        {
-            "unique_name": "Other",
-            "order": 100,
-            "name": "Other",
-            "enabled": True,
-        },
+
     ]
 }
 
