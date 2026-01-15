@@ -91,7 +91,7 @@ class PaperSubmissionGUI:
             text="🎓 Awesome 论文提交界面",
             font=("Arial", 16, "bold")
         )
-        title_label.grid(row=0, column=0, columnspan=3, pady=(0, 20))
+        title_label.grid(row=0, column=0, columnspan=3, pady=(0, 12))
         
         # 创建左右两个主要区域
         left_frame = ttk.Frame(main_frame)
@@ -138,7 +138,7 @@ class PaperSubmissionGUI:
         list_frame.rowconfigure(0, weight=1)
         
         # 创建Treeview（列表）
-        columns = ("序号", "标题", "作者", "分类")
+        columns = ("ID", "标题", "作者", "分类")
         self.paper_tree = ttk.Treeview(
             list_frame, 
             columns=columns,
@@ -149,7 +149,14 @@ class PaperSubmissionGUI:
         # 设置列标题
         for col in columns:
             self.paper_tree.heading(col, text=col)
-            self.paper_tree.column(col, width=150)
+            if col == "ID":
+                self.paper_tree.column(col, width=25)
+            elif col == "标题":
+                self.paper_tree.column(col, width=220)
+            elif col == "作者":
+                self.paper_tree.column(col, width=80)
+            else:
+                self.paper_tree.column(col, width=150)
         
         # 设置滚动条
         scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.paper_tree.yview)
@@ -247,7 +254,8 @@ class PaperSubmissionGUI:
         for tag in active_tags:
             if not tag.get('show_in_readme', True) and tag.get('variable') not in [
                 'doi', 'title', 'authors', 'date', 'category',
-                'paper_url', 'project_url', 'abstract'
+                'paper_url', 'project_url', 'abstract',
+                'conference', 'contributor', 'notes'
             ]:
                 continue
             
@@ -258,9 +266,11 @@ class PaperSubmissionGUI:
             field_type = tag.get('type', 'string')
             
             # 标签
-            label_text = f"{display_name}:"
+
             if required:
-                label_text = f"* {label_text}"
+                label_text = f"{display_name}* :"
+            else:
+                label_text = f"{display_name} :"
             
             label = ttk.Label(self.form_frame, text=label_text)
             # 默认左对齐，若是多行文本（如 abstract）则顶部对齐
@@ -268,7 +278,7 @@ class PaperSubmissionGUI:
             if field_type == 'text' and variable == 'abstract':
                 label_sticky = tk.NW
             
-            label.grid(row=row, column=0, sticky=label_sticky, pady=(10, 5))
+            label.grid(row=row, column=0, sticky=label_sticky, pady=(5, 4))
             
             # 工具提示
             if description:
@@ -278,7 +288,7 @@ class PaperSubmissionGUI:
             if field_type == 'enum' and variable == 'category':
                 # 分类下拉框
                 combo = ttk.Combobox(self.form_frame, state="readonly")
-                combo.grid(row=row, column=1, sticky="we", pady=(10, 5), padx=(10, 0))
+                combo.grid(row=row, column=1, sticky="we", pady=(5, 4), padx=(10, 0))
                 
                 # 设置分类选项
                 categories = self.config.get_active_categories()
@@ -295,7 +305,7 @@ class PaperSubmissionGUI:
                 # 布尔值选择框
                 var = tk.BooleanVar()
                 checkbox = ttk.Checkbutton(self.form_frame, variable=var)
-                checkbox.grid(row=row, column=1, sticky=tk.W, pady=(10, 5), padx=(10, 0))
+                checkbox.grid(row=row, column=1, sticky=tk.W, pady=(5, 4), padx=(10, 0))
                 
                 self.form_fields[variable] = var
                 
@@ -303,11 +313,11 @@ class PaperSubmissionGUI:
                 # 多行文本框
                 text_frame = ttk.Frame(self.form_frame)
                 # 对于多行文本，把 label 放到左上（占据左侧），输入区顶对齐
-                text_frame.grid(row=row, column=1, sticky="we", pady=(10, 5), padx=(10, 0))
+                text_frame.grid(row=row, column=1, sticky="we", pady=(5, 4), padx=(10, 0))
                  
-                # 对 abstract 使用更大的高度以保证可见
-                height = 8 if variable == 'abstract' else 5
-                text_widget = scrolledtext.ScrolledText(text_frame, height=height, width=40)
+                
+                height = 4
+                text_widget = scrolledtext.ScrolledText(text_frame, height=height, width=50)
                 text_widget.grid(row=0, column=0, sticky="nsew")
                 
                 # 配置网格权重
@@ -321,16 +331,16 @@ class PaperSubmissionGUI:
             
             else:
                 # 单行文本框
-                entry = ttk.Entry(self.form_frame, width=50)
-                entry.grid(row=row, column=1, sticky="we", pady=(10, 5), padx=(10, 0))
+                entry = ttk.Entry(self.form_frame, width=60)
+                entry.grid(row=row, column=1, sticky="we", pady=(5, 4), padx=(10, 0))
                 
                 self.form_fields[variable] = entry
             
             # 根据是否为多行文本调整label对齐
             if field_type == 'text':
-                label.grid(row=row, column=0, sticky=tk.NW, pady=(10, 5))
+                label.grid(row=row, column=0, sticky=tk.NW, pady=(5, 4))
             else:
-                label.grid(row=row, column=0, sticky=label_sticky, pady=(10, 5))
+                label.grid(row=row, column=0, sticky=label_sticky, pady=(5, 4))
 
             row += 1
         
@@ -682,6 +692,9 @@ class PaperSubmissionGUI:
             'doi': '',
             'paper_url': '',
             'project_url': '',
+            'conference': '',
+            'contributor': '',
+            'notes': '',
         }
         try:
             placeholder = Paper.from_dict(placeholder_data)

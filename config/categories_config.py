@@ -22,7 +22,13 @@ CATEGORIES_CONFIG = {
             "primary_category": None,# 所属一级分类，None表示本身为一级分类
             "enabled": True,                # 是否启用该分类
         },
-
+        {
+            "unique_name": "Base Techniques",
+            "order": 99,                     # 排序顺序，0为第一个
+            "name": "Base Techniques",  # 显示名称
+            "primary_category": None,# None表示本身为1级分类
+            "enabled": True,                # 是否启用该分类
+        },
         {
             "unique_name": "Perception and Classification",
             "order": 100,                     # 排序顺序，0为第一个
@@ -41,6 +47,13 @@ CATEGORIES_CONFIG = {
             "unique_name": "Simulation and Deduction",
             "order": 102,                     # 排序顺序，0为第一个
             "name": "Simulation and Deduction",  # 显示名称
+            "primary_category": None,# None表示本身为1级分类
+            "enabled": True,                # 是否启用该分类
+        },
+        {
+            "unique_name": "Social Media Security",
+            "order": 103,                     # 排序顺序，0为第一个
+            "name": "Social Media Security",  # 显示名称
             "primary_category": None,# None表示本身为1级分类
             "enabled": True,                # 是否启用该分类
         },
@@ -92,7 +105,7 @@ CATEGORIES_CONFIG = {
             "unique_name": "Event Extraction",
             "order": 6,
             "name": "Event Extraction",
-            "primary_category": 101,# 所属一级分类，用一级分类的order表示
+            "primary_category": 100,# 所属一级分类，用一级分类的order表示
             "enabled": True,
         },
         {
@@ -172,6 +185,13 @@ CATEGORIES_CONFIG = {
             "primary_category": 102,# 所属一级分类，用一级分类的order表示
             "enabled": True,
         },
+        {
+            "unique_name": "Social Psychological Phenomena Analysis",
+            "order": 18,
+            "name": "Social Psychological Phenomena Analysis",
+            "primary_category": 101,# 所属一级分类，用一级分类的order表示
+            "enabled": True,
+        },
 
     ]
 }
@@ -198,8 +218,9 @@ def validate_categories_config():
         else:
             unique_names[unique_name] = True
     
-    # 检查order唯一性
+    # 检查order唯一性，并建立order->category映射
     orders = {}
+    categories_by_order = {}
     for category in CATEGORIES_CONFIG["categories"]:
         order = category.get("order")
         if order is None:
@@ -210,7 +231,27 @@ def validate_categories_config():
             errors.append(f"order {order} 重复: {orders[order]} 和 {category['unique_name']}")
         else:
             orders[order] = category["unique_name"]
+            categories_by_order[order] = category
     
+    # 检查 primary_category 合法性：
+    # - 一级分类（primary_category 为 None）只能为 None
+    # - 二级分类（primary_category 非 None）必须引用存在的一级分类（用 order 表示），且被引用的分类的 primary_category 必须为 None
+    for category in CATEGORIES_CONFIG["categories"]:
+        pc = category.get("primary_category", None)
+        if pc is None:
+            # 本身为一级分类，确保显式为 None（允许缺失或 None）——已满足
+            continue
+        # 如果 primary_category 非 None，则应为整数并且存在于 categories_by_order
+        if not isinstance(pc, int):
+            errors.append(f"分类 {category.get('unique_name')} 的 primary_category 应为一级分类的 order(int)，当前为 {pc!r}")
+            continue
+        if pc not in categories_by_order:
+            errors.append(f"分类 {category.get('unique_name')} 的 primary_category {pc} 不存在")
+            continue
+        parent = categories_by_order[pc]
+        if parent.get('primary_category') is not None:
+            errors.append(f"分类 {category.get('unique_name')} 的 primary_category {pc} 指向的不是一级分类 ({parent.get('unique_name')})")
+
     # 检查name不为空
     for category in CATEGORIES_CONFIG["categories"]:
         name = category.get("name", "").strip()

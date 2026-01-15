@@ -199,7 +199,7 @@ class Paper:
                     # 验证分类是否有效
                     valid_categories = [cat['unique_name'] for cat in config_instance.get_active_categories()]
                     if value not in valid_categories:
-                        errors.append(f"分类无效: {value}")
+                        errors.append(f"分类无效: {value}，分类须为categories_config.py中已启用的分类")
                 elif tag_type == 'int':
                     try:
                         int(value)
