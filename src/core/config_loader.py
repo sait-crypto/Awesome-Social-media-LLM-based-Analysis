@@ -202,12 +202,54 @@ class ConfigLoader:
                 return tag.get(field_name,"")
 
         return ''
+    
     def get_category_by_unique_name(self, unique_name: str) -> Optional[Dict[str, Any]]:
         """根据唯一标识名获取分类配置"""
         for category in self.categories_config.get('categories', []):
             if category.get('unique_name') == unique_name:
                 return category
         return None
+    
+    def get_categories_change_list(self) -> List[Dict[str, str]]:
+        """获取分类变更列表，用于自动处理旧unique_name向新unique_name的转换
+        
+        Returns:
+            CATEGORIES_CHANGE_LIST 列表，每个元素包含 old_unique_name 和 new_unique_name
+        """
+        return self.categories_config.get('categories_change_list', [])
+    
+    def get_category_by_name_or_unique_name(self, identifier: str) -> Optional[Dict[str, Any]]:
+        """根据 unique_name 或 name 获取分类配置
+        
+        优先使用 unique_name 匹配；如果未找到，则按 name 匹配（仅返回第一个匹配）。
+        当使用 name 匹配时输出警告，建议使用 unique_name。
+        
+        Args:
+            identifier: 分类的 unique_name 或 name
+        
+        Returns:
+            分类字典，若未找到则返回 None
+        """
+        # 首先按 unique_name 匹配
+        for category in self.categories_config.get('categories', []):
+            if category.get('unique_name') == identifier:
+                return category
+        
+        # 如果按 unique_name 未找到，则按 name 匹配（仅返回第一个）
+        for category in self.categories_config.get('categories', []):
+            if category.get('name') == identifier:
+                import warnings
+                warnings.warn(
+                    f"分类标识已弃用：使用 name='{identifier}' 进行查询。"
+                    f"请改用 unique_name='{category.get('unique_name')}' 进行查询。"
+                    f"name 只代表第一个同名分类，建议统一使用 unique_name 作为标识。",
+                    DeprecationWarning,
+                    stacklevel=2
+                )
+                return category
+        
+        return None
+    
     def get_category_field(self, unique_name: str,field_name:str) -> str:
         """根据唯一标识名和category域名获取具体category的具体字段值"""
         for category in self.categories_config.get('categories', []):

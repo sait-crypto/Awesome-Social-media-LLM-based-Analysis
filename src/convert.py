@@ -69,7 +69,7 @@ class ReadmeGenerator:
         markdown_output = ""
 
         cats = [c for c in self.config.get_active_categories() if c.get('enabled', True)]
-        # 构建父 -> 子 的映射（主键使用 order）
+        # 构建父 -> 子 的映射（主键使用父类的 unique_name）
         children_map = {}
         parents = []
         for c in cats:
@@ -79,7 +79,7 @@ class ReadmeGenerator:
             else:
                 children_map.setdefault(p, []).append(c)
 
-        # 按 order 排序父和子
+        # 按 order 排序父和子（order 仍用于显示排序）
         parents = sorted(parents, key=lambda x: x.get('order', 0))
         for k in children_map:
             children_map[k] = sorted(children_map[k], key=lambda x: x.get('order', 0))
@@ -89,7 +89,8 @@ class ReadmeGenerator:
             parent_key = parent.get('unique_name')
             # 收集该父类以及其所有子类是否有论文
             parent_papers = papers_by_category.get(parent_key, [])
-            child_list = children_map.get(parent.get('order'), [])
+            # children_map 的键现在是父类的 unique_name
+            child_list = children_map.get(parent.get('unique_name'), [])
 
             # 先检查是否有任何论文需要显示（父或子有任意一个有论文则显示此父分组）
             # 计算父类计数（包括其子类的论文）
@@ -133,7 +134,7 @@ class ReadmeGenerator:
 
         支持两级分类：
         - 一级分类（primary_category 为 None）作为父条目列出
-        - 二级分类（primary_category 指向父分类的 order）会被放在对应一级分类下，换行并缩进显示
+        - 二级分类（primary_category 指向父分类的 `unique_name`）会被放在对应一级分类下，换行并缩进显示
         """
         cats = [c for c in self.config.get_active_categories() if c.get('enabled', True)]
         if not cats:
@@ -170,14 +171,14 @@ class ReadmeGenerator:
                 papers_by_category = self._group_papers_by_category(papers)
                 parent_key = parent.get('unique_name')
                 parent_count = len(papers_by_category.get(parent_key, []))
-                for child in children_map.get(parent.get('order'), []):
+                for child in children_map.get(parent.get('unique_name'), []):
                     parent_count += len(papers_by_category.get(child.get('unique_name'), []))
             except Exception:
                 parent_count = 0
 
             lines.append(f"  - [{name}](#{anchor}) ({parent_count} papers)")
             # 添加二级分类（若有），每个子项换行并缩进（再加两个空格）
-            for child in children_map.get(parent.get('order'), []):
+            for child in children_map.get(parent.get('unique_name'), []):
                 child_name = child.get('name', child.get('unique_name'))
                 child_anchor = self._slug(child_name)
                 # 子类计数

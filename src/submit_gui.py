@@ -880,6 +880,9 @@ class PaperSubmissionGUI:
             # 清理doi
             paper.doi = clean_doi(paper.doi, self.conflict_marker) if paper.doi else ""
             
+            # 规范化 category：支持 name 和 unique_name，统一输出为 unique_name
+            paper.category = self.update_utils.normalize_category_value(paper.category, self.config)
+            
             key = paper.get_key()
             
             if key in existing_map:

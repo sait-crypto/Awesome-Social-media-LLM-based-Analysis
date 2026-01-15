@@ -514,21 +514,48 @@ class UpdateFileUtils:
         active_tags.sort(key=lambda x: x.get('order', 0))
         return [tag['table_name'] for tag in active_tags]
 
-    #暂不实现，因为需要将旧name保存下来以供映射
-    def normalize_category_value(self,raw_val: Any, config_instance) -> str:
+    # 规范化为unique_name，应用categories_config.py中的分类变更列表
+    def normalize_category_value(self, raw_val: Any, config_instance) -> str:
         """
-        把 category 字段的旧name改为新的name，
+        规范化 category 字段：支持 name 或 unique_name 作为输入，
+        输出始终为 unique_name（作为唯一标识）。
+        
+        应用 CATEGORIES_CHANGE_LIST 中的分类变更规则，将旧 unique_name 自动转换为新 unique_name。
+        当使用 name 匹配时输出警告，建议使用 unique_name。
         若无法匹配则返回原值的字符串形式（strip 后）。
+        
+        Args:
+            raw_val: 原始值（可能是 unique_name、name 或其他）
+            config_instance: 配置实例
+        
+        Returns:
+            规范化后的 unique_name，或原值字符串形式
         """
-        return raw_val
         if raw_val is None:
             return ""
         val = str(raw_val).strip()
         if not val:
             return ""
-        # 构建映射：旧name -> unique_name, unique_name ->新name
-        new_cats = config_instance.get_active_categories()
-        old_cats=config_instance.old_cats
+        
+        # 先应用分类变更列表：检查是否有旧unique_name需要转换为新unique_name
+        categories_change_list = config_instance.get_categories_change_list()
+        for change_rule in categories_change_list:
+            old_unique_name = change_rule.get('old_unique_name', '').strip()
+            new_unique_name = change_rule.get('new_unique_name', '').strip()
+            if old_unique_name and new_unique_name and val == old_unique_name:
+                # 找到匹配的变更规则，应用转换
+                print(f"应用分类变更规则：'{old_unique_name}' -> '{new_unique_name}'")
+                val = new_unique_name
+                break
+        
+        # 使用 get_category_by_name_or_unique_name 方法查询分类
+        # 该方法支持 unique_name 和 name 查询，并在使用 name 时输出警告
+        category = config_instance.get_category_by_name_or_unique_name(val)
+        if category:
+            return category.get('unique_name', '')
+        
+        # 若无法匹配，返回原值的字符串形式
+        return val
 
 
     def normalize_dataframe_columns(self,df, config_instance) -> Any:
@@ -557,10 +584,11 @@ class UpdateFileUtils:
         df = df.loc[:, [c for c in to_keep if c in df.columns]]
         # reorder
         df = df[cols]
-        # # 规范化 category 列值
-        # if 'category' in df.columns:
-        #     df['category'] = df['category'].apply(lambda v: normalize_category_value(v, config_instance))
-        # 将所有非-bool/int 列转为 string（保持原有语义）
+        
+        # 规范化 category 列值：支持 name 和 unique_name，统一输出为 unique_name
+        if 'category' in df.columns:
+            df['category'] = df['category'].apply(lambda v: self.normalize_category_value(v, config_instance))
+        
         for tag in config_instance.get_active_tags():
             col = tag['table_name']
             t = tag.get('type', 'string')
@@ -607,8 +635,8 @@ class UpdateFileUtils:
                 else:
                     out[var] = str(val).strip()
             # 规范化 category 存储为 unique_name
-            # if 'category' in out:
-            #     out['category'] = normalize_category_value(out.get('category', ""), config_instance)
+            if 'category' in out:
+                 out['category'] = self.normalize_category_value(out.get('category', ""), config_instance)
             normalized_list.append(out)
         return normalized_list
     
