@@ -496,7 +496,7 @@ class ReadmeGenerator:
         except Exception:
             total_unique = 0
 
-        before_tables = content[:start_index + len(start_marker)] + f" (total：{total_unique} papers)"
+        before_tables = content[:start_index + len(start_marker)] + f" ({total_unique} papers)"
         after_tables = content[end_index:]
         
         # 在表格前添加说明
