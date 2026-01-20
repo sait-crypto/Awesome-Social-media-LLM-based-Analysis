@@ -138,7 +138,7 @@ class ReadmeGenerator:
             unique_name: 分类的 unique_name
         
         Returns:
-            去重后的论文总数
+            去重后的论文总数，对应的anchor字符串
         """
         # 自动加载论文数据
         try:
@@ -357,7 +357,7 @@ class ReadmeGenerator:
                     count, anchor = self._get_category_paper_count_and_anchor(uname)  # 仅用于生成锚点，自动加载数据
                     links.append(f"[{display}](#{anchor})")
                 links_str = ", ".join(links)
-                multi_line = f" <br> <span style=\"color:blue\">multi-category：{links_str}</span>"
+                multi_line = f" <br> <span style=\"color:cyan\">[multi-category：{links_str}]</span>"
         except Exception:
             multi_line = ""
 
