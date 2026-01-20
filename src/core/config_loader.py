@@ -126,6 +126,7 @@ class ConfigLoader:
                 'required_column_fill': 'DDEBF7',       # 必填列单元格浅蓝
                 'conflict_fill_color': 'FFCCCC',        # 冲突行红色（优先级高）
                 'header_font_color': 'FFFFFF',          # 表头字体颜色
+                'invalid_fill_color': 'FF0000',         # 无效条目字体颜色
                 'password_path': 'key.txt',
                 'excel_key_github_secret_name': 'EXCEL_KEY',
             },
@@ -133,7 +134,8 @@ class ConfigLoader:
                 'default_contributor': 'anonymous',
                 'conflict_marker': '[冲突]',
                 'translation_separator':'[翻译]',
-                'value_deprecation_mark':'[Deprecated]'
+                'value_deprecation_mark':'[Deprecated]',
+                'max_categories_per_paper': '4'
             },
             'readme': {
                 'truncate_translation':'true',

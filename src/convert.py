@@ -59,7 +59,7 @@ class ReadmeGenerator:
         if self.is_truncate_translation==True:
             if df is not None and not df.empty:
                 df = self._truncate_translation_suffix(df)
-        papers = self.update_utils.excel_to_paper(df, only_non_system=False)
+        papers = self.update_utils.excel_to_paper(df, only_non_system=False, skip_invalid=True)
         # 排除冲突条目
         papers=[p for p in papers if p.conflict_marker==False]
         # 按分类分组
@@ -166,7 +166,7 @@ class ReadmeGenerator:
                 df = self.db_manager.load_database()
                 if self.is_truncate_translation and df is not None and not df.empty:
                     df = self._truncate_translation_suffix(df)
-                papers = self.update_utils.excel_to_paper(df, only_non_system=False)
+                papers = self.update_utils.excel_to_paper(df, only_non_system=False, skip_invalid=True)
                 papers = [p for p in papers if p.conflict_marker == False and p.show_in_readme]
                 papers_by_category = self._group_papers_by_category(papers)
                 parent_key = parent.get('unique_name')
@@ -198,12 +198,16 @@ class ReadmeGenerator:
             # 只处理需要在README中显示的论文
             if not paper.show_in_readme:
                 continue
-            
-            category = paper.category
-            if category not in papers_by_category:
-                papers_by_category[category] = []
-            
-            papers_by_category[category].append(paper)
+            # 支持多分类（分号分隔），一篇论文可出现在多个分类中
+            raw_cat = paper.category or ""
+            parts = [p.strip() for p in re.split(r'[;；]', raw_cat) if p.strip()]
+            if not parts:
+                # 空分类，放到空字符串键下
+                papers_by_category.setdefault("", []).append(paper)
+                continue
+
+            for c in parts:
+                papers_by_category.setdefault(c, []).append(paper)
         
         # 在每个分类内按提交时间排序（越晚提交越靠前）
         for category in papers_by_category:
@@ -251,6 +255,8 @@ class ReadmeGenerator:
     
     def _generate_title_authors_cell(self, paper: Paper) -> str:
         """生成标题和作者单元格"""
+        if not hasattr(self, 'enable_markdown'):
+            self.enable_markdown = False
         # 清理和格式化
         # 标题不使用过度转义（避免将 '-' 或 '.' 变为 '\\-' 或 '\\.'），交给 create_hyperlink 的内部转义处理
         title = truncate_text(paper.title, self.max_title_length)
@@ -286,10 +292,29 @@ class ReadmeGenerator:
         
         title_with_link = create_hyperlink(title, paper.paper_url)
         
-        return f"{badges}{title_with_link} <br> {authors} <br> {date}"
+        # 如果属于多个分类，在最后一行显示 multi-category：并列出所有分类（逗号分隔，每个分类链接到对应分类锚点），蓝色字体
+        multi_line = ""
+        try:
+            raw_cat = paper.category or ""
+            parts = [p.strip() for p in re.split(r'[;；]', raw_cat) if p.strip()]
+            if len(parts) > 1:
+                links = []
+                for uname in parts:
+                    # 获取分类显示名
+                    display = self.config.get_category_field(uname, 'name') or uname
+                    anchor = self._slug(display)
+                    links.append(f"[{display}](#{anchor})")
+                links_str = ", ".join(links)
+                multi_line = f" <br> <span style=\"color:blue\">multi-category：{links_str}</span>"
+        except Exception:
+            multi_line = ""
+
+        return f"{badges}{title_with_link} <br> {authors} <br> {date}{multi_line}"
     
     def _generate_analogy_cell(self, paper: Paper) -> str:
         """生成类比总结单元格"""
+        if not hasattr(self, 'enable_markdown'):
+            self.enable_markdown = False
         if not paper.analogy_summary:
             return ""
         
@@ -301,6 +326,8 @@ class ReadmeGenerator:
     
     def _sanitize_field(self, text: str) -> str:
         """将字段文本中的回车换行规范为 HTML <br>，并转义 Markdown 特殊字符"""
+        if not hasattr(self, 'enable_markdown'):
+            self.enable_markdown = False
         if text is None:
             return ""
         s = str(text).strip()
@@ -446,9 +473,22 @@ class ReadmeGenerator:
         if start_index == -1 or end_index == -1:
             print("无法找到README中的标记部分")
             return False
-        
-        # 构建新内容
-        before_tables = content[:start_index + len(start_marker)]
+        # 计算表格中论文总数（不重复计数）并把数量附加到标题后
+        try:
+            df = self.db_manager.load_database()
+            if self.is_truncate_translation and df is not None and not df.empty:
+                df = self._truncate_translation_suffix(df)
+            papers = self.update_utils.excel_to_paper(df, only_non_system=False, skip_invalid=True)
+            papers = [p for p in papers if p.conflict_marker == False and p.show_in_readme]
+            # 使用 get_key 去重（基于 doi/title）
+            unique_keys = set()
+            for p in papers:
+                unique_keys.add(p.get_key())
+            total_unique = len(unique_keys)
+        except Exception:
+            total_unique = 0
+
+        before_tables = content[:start_index + len(start_marker)] + f" (total：{total_unique} papers)"
         after_tables = content[end_index:]
         
         # 在表格前添加说明

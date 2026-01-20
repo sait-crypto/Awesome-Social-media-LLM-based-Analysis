@@ -23,7 +23,8 @@
       "show_in_readme": true,
       "status": "",
       "submission_time": "",
-      "conflict_marker": false
+      "conflict_marker": false,
+      "invalid_fields": ""
     },
     {
       "doi": "10.1609/icwsm.v19i1.35801",
@@ -48,7 +49,8 @@
       "show_in_readme": true,
       "status": "",
       "submission_time": "",
-      "conflict_marker": false
+      "conflict_marker": false,
+      "invalid_fields": ""
     },
     {
       "doi": "10.1609/icwsm.v19i1.35800",
@@ -73,7 +75,8 @@
       "show_in_readme": true,
       "status": "",
       "submission_time": "",
-      "conflict_marker": false
+      "conflict_marker": false,
+      "invalid_fields": ""
     },
     {
       "doi": "10.1017/pan.2023.2",
@@ -98,7 +101,8 @@
       "show_in_readme": true,
       "status": "",
       "submission_time": "",
-      "conflict_marker": false
+      "conflict_marker": false,
+      "invalid_fields": ""
     },
     {
       "doi": "10.18653/v1/2024.findings-emnlp.153",
@@ -123,7 +127,8 @@
       "show_in_readme": true,
       "status": "",
       "submission_time": "",
-      "conflict_marker": false
+      "conflict_marker": false,
+      "invalid_fields": ""
     },
     {
       "doi": "10.1609/aaai.v39i12.33430",
@@ -148,7 +153,8 @@
       "show_in_readme": true,
       "status": "",
       "submission_time": "",
-      "conflict_marker": false
+      "conflict_marker": false,
+      "invalid_fields": ""
     },
     {
       "doi": "10.1007/978-981-99-8181-6_33",
@@ -173,7 +179,8 @@
       "show_in_readme": true,
       "status": "",
       "submission_time": "",
-      "conflict_marker": false
+      "conflict_marker": false,
+      "invalid_fields": ""
     },
     {
       "doi": "10.1609/icwsm.v19i1.35804",
@@ -198,7 +205,8 @@
       "show_in_readme": true,
       "status": "",
       "submission_time": "",
-      "conflict_marker": false
+      "conflict_marker": false,
+      "invalid_fields": ""
     },
     {
       "doi": "10.1145/3627673.3679519",
@@ -223,10 +231,11 @@
       "show_in_readme": true,
       "status": "",
       "submission_time": "",
-      "conflict_marker": false
+      "conflict_marker": false,
+      "invalid_fields": ""
     }
   ],
   "meta": {
-    "generated_at": "2026-01-15 20:03:33"
+    "generated_at": "2026-01-21 02:16:53"
   }
 }

@@ -43,6 +43,10 @@ CATEGORIES_CHANGE_LIST = [
     #     "old_unique_name": "Base Techniques",
     #     "new_unique_name": "Hate Speech Analysis",
     # },
+        {
+        "old_unique_name": "Social Content Generation",   # 旧的唯一标识符（被替换）
+        "new_unique_name": "Comment Generation",   # 新的唯一标识符（替换目标）
+    }
 ]
 
 # =========================================分类配置=========================================
@@ -76,22 +80,29 @@ CATEGORIES_CONFIG = {
             "enabled": True,                # 是否启用该分类
         },
         {
-            "unique_name": "Cognition and Generation",
+            "unique_name": "Understanding",
             "order": 101,                     # 排序顺序，0为第一个
-            "name": "Cognition and Generation",  # 显示名称
+            "name": "Understanding",  # 显示名称
+            "primary_category": None,# None表示本身为1级分类
+            "enabled": True,                # 是否启用该分类
+        },
+        {
+            "unique_name": "Generation",
+            "order": 102,                     # 排序顺序，0为第一个
+            "name": "Generation",  # 显示名称
             "primary_category": None,# None表示本身为1级分类
             "enabled": True,                # 是否启用该分类
         },
         {
             "unique_name": "Simulation and Deduction",
-            "order": 102,                     # 排序顺序，0为第一个
+            "order": 103,                     # 排序顺序，0为第一个
             "name": "Simulation and Deduction",  # 显示名称
             "primary_category": None,# None表示本身为1级分类
             "enabled": True,                # 是否启用该分类
         },
         {
             "unique_name": "Social Media Security",
-            "order": 103,                     # 排序顺序，0为第一个
+            "order": 104,                     # 排序顺序，0为第一个
             "name": "Social Media Security",  # 显示名称
             "primary_category": None,# None表示本身为1级分类
             "enabled": True,                # 是否启用该分类
@@ -151,7 +162,7 @@ CATEGORIES_CONFIG = {
             "unique_name": "Topic Modeling",
             "order": 7,
             "name": "Topic Modeling",
-            "primary_category": "Cognition and Generation",
+            "primary_category": "Understanding",
             "enabled": True,
         },
         {
@@ -165,7 +176,7 @@ CATEGORIES_CONFIG = {
             "unique_name": "User Profiling",
             "order": 9,
             "name": "User Profiling",
-            "primary_category": "Cognition and Generation",
+            "primary_category": "Understanding",
             "enabled": True,
         },
         {
@@ -176,10 +187,10 @@ CATEGORIES_CONFIG = {
             "enabled": True,
         },
         {
-            "unique_name": "Social Content Generation",
+            "unique_name": "Comment Generation",
             "order": 11,
-            "name": "Social Content Generation",
-            "primary_category": "Cognition and Generation",
+            "name": "Comment Generation",
+            "primary_category": "Generation",
             "enabled": True,
         },
         {
@@ -228,7 +239,7 @@ CATEGORIES_CONFIG = {
             "unique_name": "Social Psychological Phenomena Analysis",
             "order": 18,
             "name": "Social Psychological Phenomena Analysis",
-            "primary_category": "Cognition and Generation",
+            "primary_category": "Understanding",
             "enabled": True,
         },
 

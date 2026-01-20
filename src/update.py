@@ -99,6 +99,7 @@ class UpdateProcessor:
         # 循环处理每个文件
         total_added_papers = []
         total_conflict_papers = []
+        total_invalid_msg = []
 
         for file_path in valid_files:
             print(f"\n📝--- 处理文件: {file_path} ---")
@@ -120,7 +121,7 @@ class UpdateProcessor:
                 continue
 
             if not current_papers:
-                print(f"❕文件中没有论文数据")
+                print(f"⚠ 文件中没有论文数据")
                 continue
 
             print(f"读取到 {len(current_papers)} 篇论文")
@@ -157,28 +158,30 @@ class UpdateProcessor:
             if self.ai_generator.is_available():
                 print("使用AI生成缺失内容...")
                 try:
-                    valid_papers = self.ai_generator.batch_enhance_papers(valid_papers)
-                    
-                    # 回写到当前文件
-                    try:
-                        self.update_utils.persist_ai_generated_to_update_files(valid_papers, file_path)
-                    except Exception as e:
-                        err = f"回写AI内容到 {file_path} 失败: {e}"
-                        print(err)
-                        result['errors'].append(err)
-                    
-                    # 统计
-                    ai_count = 0
-                    for p in valid_papers:
-                        if any(
-                            getattr(p, field, "").startswith(self.ai_generate_mark) 
-                            for field in ['title_translation', 'analogy_summary', 
-                                        'summary_motivation', 'summary_innovation',
-                                        'summary_method', 'summary_conclusion', 
-                                        'summary_limitation']
-                        ):
-                            ai_count += 1
-                    result['ai_generated'] += ai_count
+                    valid_papers, is_enhanced = self.ai_generator.batch_enhance_papers(valid_papers)
+                    if  is_enhanced:
+                        # 回写到当前文件
+                        try:
+                            self.update_utils.persist_ai_generated_to_update_files(valid_papers, file_path)
+                        except Exception as e:
+                            err = f"回写AI内容到 {file_path} 失败: {e}"
+                            print(err)
+                            result['errors'].append(err)
+                        
+                        # 统计
+                        ai_count = 0
+                        for p in valid_papers:
+                            if any(
+                                getattr(p, field, "").startswith(self.ai_generate_mark) 
+                                for field in ['title_translation', 'analogy_summary', 
+                                            'summary_motivation', 'summary_innovation',
+                                            'summary_method', 'summary_conclusion', 
+                                            'summary_limitation']
+                            ):
+                                ai_count += 1
+                        result['ai_generated'] += ai_count
+                    else:
+                        print("AI未生成内容")
                 except Exception as e:
                     err = f"AI生成内容失败 ({file_path}): {e}"
                     result['errors'].append(err)
@@ -187,12 +190,13 @@ class UpdateProcessor:
             # 5. 添加到数据库
             print(f"正在更新 {len(valid_papers)} 篇论文到数据库...")
             try:
-                added, conflicts = self.db_manager.add_papers(
+                added, conflicts, invalid_msg = self.db_manager.add_papers(
                     valid_papers, 
                     conflict_resolution_strategy
                 )
                 total_added_papers.extend(added)
                 total_conflict_papers.extend(conflicts)
+                total_invalid_msg.extend(invalid_msg)
                 result['new_papers'] += len(added)
             except Exception as e:
                 error_msg = f"数据库操作失败 ({file_path}): {e}"
@@ -238,7 +242,8 @@ class UpdateProcessor:
                 'existing': asdict(existing_paper) if existing_paper else None
             })
         result['conflicts'] = conflicts_list
-
+        # 整理验证失败信息
+        result['invalid_msg']=list(dict.fromkeys(total_invalid_msg))#去重
         return result
     
     
@@ -293,12 +298,17 @@ class UpdateProcessor:
             
             if result['errors']:
                 print(f"⚠ 处理过程中出现 {len(result['errors'])} 个错误")
-                for error in result['errors'][:3]:  # 只显示前3个错误
+                for error in result['errors'][:4]:  # 只显示前4个错误
                     print(f"  - {error}")
+
         else:
             print("✗ 更新操作未产生变更或失败")
             for error in result['errors']:
                 print(f"  - {error}")
+        if result['invalid_msg']:
+            print(f"✗ 数据库中存在 {len(result['invalid_msg'])} 条不规范字段警告，所在单元格已标红，请手动修正")
+            for msg in result['invalid_msg']: 
+                print(f"  - {msg}")
     
 def main():
     """主函数"""

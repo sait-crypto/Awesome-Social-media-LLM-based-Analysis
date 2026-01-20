@@ -285,21 +285,40 @@ class PaperSubmissionGUI:
                 self.create_tooltip(label, description)
             
             # 输入字段
-            if field_type == 'enum' and variable == 'category':
-                # 分类下拉框
-                combo = ttk.Combobox(self.form_frame, state="readonly")
-                combo.grid(row=row, column=1, sticky="we", pady=(5, 4), padx=(10, 0))
-                
+            if field_type == 'enum[]' and variable == 'category':
+                # 分类输入支持多个：在左侧放置一个“+”按钮，点击增加额外的分类输入行
+                container = ttk.Frame(self.form_frame)
+                container.grid(row=row, column=1, sticky="we", pady=(5, 4), padx=(10, 0))
+
                 # 设置分类选项
                 categories = self.config.get_active_categories()
                 category_names = [cat['name'] for cat in categories]
                 category_values = [cat['unique_name'] for cat in categories]
-                
-                combo['values'] = category_names
                 self.category_mapping = dict(zip(category_names, category_values))
-                self.category_mapping[""] = "none"
+                # 反向映射
+                self.category_reverse_mapping = {v: k for k, v in self.category_mapping.items()}
+                self.category_reverse_mapping[""] = ""
+
+                # 存放每一行 (frame, button, combobox)
+                self.category_rows = []
+                self.category_container = container
+
+                # 最大允许的分类输入框数（GUI 层限制）：min(max_categories_per_paper, 6)
+                try:
+                    cfg_max = int(self.settings['database'].get('max_categories_per_paper', 4))
+                except Exception:
+                    cfg_max = 4
+                self._gui_category_max = min(cfg_max, 6)
+
+                # 初始至少一行
+                self._gui_add_category_row('')
+                # 将容器对象记录到 form_fields，作为特殊处理标识
+                self.form_fields[variable] = container
                 
-                self.form_fields[variable] = combo
+                # 网格化标签（用于 category 字段）
+                label.grid(row=row, column=0, sticky=label_sticky, pady=(5, 4))
+            elif field_type == 'enum' :
+                pass
                 
             elif field_type == 'bool':
                 # 布尔值选择框
@@ -308,6 +327,8 @@ class PaperSubmissionGUI:
                 checkbox.grid(row=row, column=1, sticky=tk.W, pady=(5, 4), padx=(10, 0))
                 
                 self.form_fields[variable] = var
+                # 网格化标签
+                label.grid(row=row, column=0, sticky=label_sticky, pady=(5, 4))
                 
             elif field_type == 'text':
                 # 多行文本框
@@ -328,6 +349,9 @@ class PaperSubmissionGUI:
                 # 当鼠标进入多行文本区域时，启用全局滚轮到 form 的绑定，离开时解绑
                 text_widget.bind("<Enter>", lambda e: self._bind_form_scroll())
                 text_widget.bind("<Leave>", lambda e: self._unbind_form_scroll())
+                
+                # 网格化标签（多行文本标签顶部对齐）
+                label.grid(row=row, column=0, sticky=tk.NW, pady=(5, 4))
             
             else:
                 # 单行文本框
@@ -335,12 +359,18 @@ class PaperSubmissionGUI:
                 entry.grid(row=row, column=1, sticky="we", pady=(5, 4), padx=(10, 0))
                 
                 self.form_fields[variable] = entry
-            
-            # 根据是否为多行文本调整label对齐
-            if field_type == 'text':
-                label.grid(row=row, column=0, sticky=tk.NW, pady=(5, 4))
-            else:
+                # 网格化标签
                 label.grid(row=row, column=0, sticky=label_sticky, pady=(5, 4))
+            
+            # 仅当还未网格化标签时才网格化（category 字段已在特殊处理中网格化）
+            if variable != 'category':
+                if field_type == 'text':
+                    label.grid(row=row, column=0, sticky=tk.NW, pady=(5, 4))
+                else:
+                    label.grid(row=row, column=0, sticky=label_sticky, pady=(5, 4))
+            else:
+                # category 字段的标签已在if/elif块中网格化
+                pass
 
             row += 1
         
@@ -350,6 +380,106 @@ class PaperSubmissionGUI:
         # 鼠标进入整个 form_frame 时启用滚轮绑定，离开时解绑（确保在frame任意位置滚动都有效）
         self.form_frame.bind("<Enter>", lambda e: self._bind_form_scroll())
         self.form_frame.bind("<Leave>", lambda e: self._unbind_form_scroll())
+
+    # ---------- Category GUI helpers ----------
+    def _gui_add_category_row(self, value_display: str = ""):
+        """在 category container 中追加一行下拉框。
+        - 第一行（index=0）：按钮为 '+' 用来添加额外分类，到达上限时变灰
+        - 其他行（index>0）：按钮为 '-' 用来删除该行
+        """
+        container = getattr(self, 'category_container', None)
+        if container is None:
+            return
+
+        # 判断是否是第一行
+        is_first = len(getattr(self, 'category_rows', [])) == 0
+
+        # 创建行框架
+        row_frame = ttk.Frame(container)
+        row_frame.pack(fill='x', pady=2)
+
+        # 创建按钮：第一行始终是 '+'，其他行是 '-'
+        if is_first:
+            btn_text = '+'
+        else:
+            btn_text = '-'
+        
+        btn = ttk.Button(row_frame, text=btn_text, width=2)
+        btn.pack(side='left', padx=(0, 6))
+
+        # 创建下拉框
+        combo = ttk.Combobox(
+            row_frame, 
+            state='readonly', 
+            values=[cat['name'] for cat in self.config.get_active_categories()]
+        )
+        combo.pack(side='left', fill='x', expand=True)
+
+        # 如果提供了显示值，设置到下拉框
+        if value_display:
+            combo.set(value_display)
+
+        # 为此行创建按钮回调（需要使用闭包来正确捕获变量）
+        def make_button_callback(frame_ref, button_ref, is_first_row):
+            def on_btn_click():
+                current_rows_count = len(self.category_rows)
+                
+                if is_first_row:
+                    # 第一行的 '+' 按钮：添加新行
+                    if current_rows_count >= self._gui_category_max:
+                        messagebox.showwarning('限制', f'最多只能添加 {self._gui_category_max} 个分类')
+                        return
+                    # 添加新行
+                    self._gui_add_category_row('')
+                    # 添加后检查是否达到上限，如果达到则禁用 '+' 按钮
+                    if len(self.category_rows) >= self._gui_category_max:
+                        first_row_frame, first_btn, first_combo = self.category_rows[0]
+                        first_btn.config(state='disabled')
+                else:
+                    # 其他行的 '-' 按钮：删除当前行
+                    try:
+                        for idx, (f, b, c) in enumerate(self.category_rows):
+                            if f is frame_ref:
+                                f.destroy()
+                                self.category_rows.pop(idx)
+                                break
+                        # 删除后检查是否未达上限，如果未达则启用 '+' 按钮
+                        if self.category_rows and len(self.category_rows) < self._gui_category_max:
+                            first_row_frame, first_btn, first_combo = self.category_rows[0]
+                            first_btn.config(state='normal')
+                    except Exception:
+                        pass
+            return on_btn_click
+
+        btn.config(command=make_button_callback(row_frame, btn, is_first))
+
+        # 将此行加入管理列表
+        self.category_rows.append((row_frame, btn, combo))
+        
+        # 检查是否已达到上限，如果达到则禁用第一行的 '+' 按钮
+        if len(self.category_rows) >= self._gui_category_max and is_first:
+            btn.config(state='disabled')
+
+    def _gui_clear_category_rows(self):
+        """清除所有 category 行。"""
+        try:
+            for frame, btn, combo in getattr(self, 'category_rows', []):
+                frame.destroy()
+        except Exception:
+            pass
+        self.category_rows = []
+
+    def _gui_get_category_values(self) -> List[str]:
+        """从所有 category 行中获取 unique_name 列表。"""
+        values = []
+        for frame, btn, combo in getattr(self, 'category_rows', []):
+            display_name = combo.get().strip()
+            if display_name:
+                # 转换显示名称为 unique_name
+                unique_name = self.category_mapping.get(display_name, display_name)
+                if unique_name:
+                    values.append(unique_name)
+        return values
     
     def _bind_form_scroll(self):
         """在鼠标悬停表单时绑定全局滚轮事件到 form 的滚动处理器"""
@@ -526,7 +656,7 @@ class PaperSubmissionGUI:
         """加载现有的更新文件"""
         if os.path.exists(self.update_json_path):
             try:
-                self.papers.extend(self.update_utils.load_papers_from_json(self.update_json_path))
+                self.papers.extend(self.update_utils.load_papers_from_json(self.update_json_path, skip_invalid=False))
             
                 self.update_paper_list()
                 self.update_status(f"已从{self.update_json_path}加载 {len(self.papers)} 篇论文")
@@ -549,11 +679,17 @@ class PaperSubmissionGUI:
             
             # 获取分类显示名
             category_display = paper.category
-            if hasattr(self, 'category_mapping'):
-                for display_name, unique_name in self.category_mapping.items():
-                    if unique_name == paper.category:
-                        category_display = display_name
-                        break
+            if hasattr(self, 'category_mapping') and paper.category:
+                # 支持多分类（; 分隔）
+                parts = [p.strip() for p in str(paper.category).split(';') if p.strip()]
+                display_parts = []
+                for p in parts:
+                    disp = self.category_reverse_mapping.get(p)
+                    if disp:
+                        display_parts.append(disp)
+                    else:
+                        display_parts.append(p)
+                category_display = ", ".join(display_parts)
             
             self.paper_tree.insert("", "end", values=(i+1, title, authors, category_display))
     
@@ -601,17 +737,23 @@ class PaperSubmissionGUI:
             if value is None:
                 value = ""
             
-            # 根据widget类型设置值
-            if isinstance(widget, ttk.Combobox):
-                # 分类下拉框
-                if variable == 'category':
-                    # 查找分类显示名
-                    for display_name, unique_name in self.category_mapping.items():
-                        if unique_name == value:
-                            widget.set(display_name)
-                            break
-                    else:
-                        widget.set("")
+            # 特殊处理 category 字段（多分类）- category 在 form_fields 中存储的是 container
+            if variable == 'category':
+                # paper.category 是以 ';' 分隔的 unique_name 字符串
+                unique_names = [v.strip() for v in str(value).split(';') if v.strip()]
+                
+                # 清空现有的 category 行
+                self._gui_clear_category_rows()
+                
+                # 如果没有分类值，创建一个空行
+                if not unique_names:
+                    self._gui_add_category_row('')
+                else:
+                    # 为每个 unique_name 创建一行
+                    for uname in unique_names:
+                        # 获取显示名称
+                        display_name = self.category_reverse_mapping.get(uname, '')
+                        self._gui_add_category_row(display_name)
             
             elif isinstance(widget, tk.BooleanVar):
                 # 复选框
@@ -622,10 +764,22 @@ class PaperSubmissionGUI:
                 widget.delete(1.0, tk.END)
                 widget.insert(1.0, str(value))
             
-            else:
+            elif isinstance(widget, ttk.Combobox):
+                # 其他下拉框（非 category）
+                widget.set(str(value))
+            
+            elif isinstance(widget, ttk.Entry):
                 # 单行文本框
                 widget.delete(0, tk.END)
                 widget.insert(0, str(value))
+            
+            elif hasattr(widget, 'delete') and hasattr(widget, 'insert'):
+                # 其他有 delete 和 insert 方法的 widget
+                try:
+                    widget.delete(0, tk.END)
+                    widget.insert(0, str(value))
+                except Exception:
+                    pass
     
     def get_paper_from_form(self) -> Optional[Paper]:
         """从表单获取论文数据"""
@@ -633,14 +787,11 @@ class PaperSubmissionGUI:
         
         # 遍历所有字段
         for variable, widget in self.form_fields.items():
-            if isinstance(widget, ttk.Combobox):
-                # 分类下拉框
-                if variable == 'category':
-                    display_name = widget.get()
-                    unique_name = self.category_mapping.get(display_name, "")
-                    paper_data[variable] = unique_name
-                else:
-                    paper_data[variable] = widget.get()
+            # 特殊处理 category 字段（在 form_fields 中存储的是 container）
+            if variable == 'category':
+                # 从所有 category 行中收集值
+                unique_names = self._gui_get_category_values()
+                paper_data[variable] = ";".join(unique_names)
             
             elif isinstance(widget, tk.BooleanVar):
                 # 复选框
@@ -650,9 +801,21 @@ class PaperSubmissionGUI:
                 # 多行文本框
                 paper_data[variable] = widget.get(1.0, tk.END).strip()
             
-            else:
+            elif isinstance(widget, ttk.Combobox):
+                # 其他下拉框
+                paper_data[variable] = widget.get()
+            
+            elif isinstance(widget, ttk.Entry):
                 # 单行文本框
                 paper_data[variable] = widget.get()
+            
+            elif hasattr(widget, 'get'):
+                # 其他有 get 方法的 widget（但排除 container 类型）
+                try:
+                    paper_data[variable] = widget.get()
+                except Exception:
+                    # 如果 get 方法调用失败，跳过
+                    pass
         
         # 创建Paper对象
         try:
@@ -833,7 +996,14 @@ class PaperSubmissionGUI:
     def clear_form(self):
         """清空表单"""
         for variable, widget in self.form_fields.items():
-            if isinstance(widget, ttk.Combobox):
+            if variable == 'category' and getattr(self, 'category_container', None):
+                # 清理多分类GUI行并恢复初始空行
+                try:
+                    self._gui_clear_category_rows()
+                    self._gui_add_category_row('')
+                except Exception:
+                    pass
+            elif isinstance(widget, ttk.Combobox):
                 widget.set("")
             elif isinstance(widget, tk.BooleanVar):
                 widget.set(False)
@@ -862,7 +1032,7 @@ class PaperSubmissionGUI:
         existing_papers = []
         try:
             if os.path.exists(self.update_json_path):
-                existing_papers = self.update_utils.load_papers_from_json(self.update_json_path)
+                existing_papers = self.update_utils.load_papers_from_json(self.update_json_path, skip_invalid=False)
         except Exception as e:
             messagebox.showerror("错误", f"读取现有JSON文件失败: {e}")
             return False
@@ -929,7 +1099,7 @@ class PaperSubmissionGUI:
 
         # 5. 保存到文件 (使用新封装的方法，自动处理 meta)
         try:
-            self.update_utils.save_papers_to_json(self.update_json_path, merged_papers)
+            self.update_utils.save_papers_to_json(self.update_json_path, merged_papers, skip_invalid=False)
         except Exception as e:
             messagebox.showerror("错误", f"保存JSON文件失败: {e}")
             return False

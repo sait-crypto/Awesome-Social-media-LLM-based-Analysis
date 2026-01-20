@@ -81,8 +81,8 @@ TAGS_CONFIG = {
             "order": 4,                     # 不可更改，必须是4
             "table_name": "category",
             "display_name": "category",
-            "description": "论文的分类",
-            "type": "enum",                 #具体取值在categories_config.py中
+            "description": "论文的分类，可多选，用;分隔",
+            "type": "enum[]",                 #具体取值在categories_config.py中,[]表示可多选，之间用;隔开
             "validation": None,
             "show_in_readme": True,
             "enabled": True,
@@ -358,6 +358,20 @@ TAGS_CONFIG = {
             "display_name": "conflict marker",
             "description": "冲突标记",
             "type": "bool",
+            "validation": None,
+            "show_in_readme": False,
+            "enabled": True,
+            "immutable": True,
+            "required": False,     
+            "system_var": True,            #控制字段，为真时只在数据库中显示           
+        },
+        {
+            "variable": "invalid_fields",
+            "order": 22,
+            "table_name": "invalid fields",
+            "display_name": "invalid fields",
+            "description": "该论文哪些字段不规范，需要人工审核",
+            "type": "string",
             "validation": None,
             "show_in_readme": False,
             "enabled": True,

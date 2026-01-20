@@ -24,6 +24,7 @@ paper_to_json
 """
 import os
 import json
+import re
 from typing import List, Dict, Any, Optional,Union,Tuple
 from dataclasses import asdict
 
@@ -112,8 +113,9 @@ class UpdateFileUtils:
             return False
         
 
-    
-    def load_papers_from_excel(self, filepath: str = None) -> List[Paper]:
+
+
+    def load_papers_from_excel(self, filepath: str = None, skip_invalid: bool = True) -> List[Paper]:
         """从Excel文件加载论文"""
 
         if filepath is None:
@@ -123,9 +125,9 @@ class UpdateFileUtils:
         if df is None or df.empty:
             return []
         
-        return self.excel_to_paper(df, only_non_system=True)
-    
-    def load_papers_from_json(self, filepath: str = None) -> List[Paper]:
+        return self.excel_to_paper(df, only_non_system=True, skip_invalid=skip_invalid)
+
+    def load_papers_from_json(self, filepath: str = None, skip_invalid: bool = True) -> List[Paper]:
         """从JSON文件加载论文 (支持 {'papers': [...], 'meta': ...} 结构)"""
         if filepath is None:
             filepath = self.update_json_path
@@ -152,9 +154,9 @@ class UpdateFileUtils:
             # 旧结构(列表)
             papers_data = data
         
-        return self.json_to_paper(papers_data, only_non_system=True)
-    
-    def save_papers_to_json(self, filepath: str, papers: List[Paper]) -> bool:
+        return self.json_to_paper(papers_data, only_non_system=True, skip_invalid=skip_invalid)
+
+    def save_papers_to_json(self, filepath: str, papers: List[Paper], skip_invalid: bool = False) -> bool:
         """
         保存论文列表到JSON文件，自动处理 meta 结构
         结构: {'papers': [...], 'meta': {'generated_at': ...}}
@@ -170,7 +172,7 @@ class UpdateFileUtils:
             meta['generated_at'] = get_current_timestamp()
 
             # 3. 转换论文数据
-            papers_data = self.paper_to_json(papers)
+            papers_data = self.paper_to_json(papers, skip_invalid=skip_invalid)
             if isinstance(papers_data, dict): # 如果只有一条数据paper_to_json可能返回dict，强制转list
                 papers_data = [papers_data]
 
@@ -219,7 +221,7 @@ class UpdateFileUtils:
             return False
         
         # 2. 过滤数据
-        has_changes = False
+        has_changes = True
         new_data = None
 
         if isinstance(data, list):
@@ -230,6 +232,7 @@ class UpdateFileUtils:
                 new_data = filtered_data
             else:
                 new_data = data
+                has_changes = False
 
         elif isinstance(data, dict) and 'papers' in data:
             if isinstance(data['papers'], list):
@@ -241,6 +244,9 @@ class UpdateFileUtils:
                     new_data = data
                 else:
                     new_data = data
+                    has_changes = False
+        else:
+            has_changes = False
 
         # 3. 备份并写入
         if has_changes:
@@ -356,8 +362,9 @@ class UpdateFileUtils:
             if 'papers' not in json_data:
                 json_data['papers'] = []
             
-            existing_papers = self.json_to_paper(json_data['papers'], only_non_system=True)
+            existing_papers = self.json_to_paper(json_data['papers'], only_non_system=True, skip_invalid=False)
             
+    
             # 匹配并更新AI字段
             for ai_paper in papers:
                 for existing_paper in existing_papers:
@@ -368,9 +375,11 @@ class UpdateFileUtils:
                             if new_value:
                                 setattr(existing_paper, field, new_value)
                         break
-            
+
+            # 调用统一备份函数
+            backup_file(file_path, self.backup_dir)
             # 转换回JSON格式并保存，注意保留Meta
-            self.save_papers_to_json(file_path, existing_papers)
+            self.save_papers_to_json(file_path, existing_papers, skip_invalid=False)
         
         except Exception as e:
             raise RuntimeError(f"写入更新JSON失败: {e}")
@@ -383,7 +392,7 @@ class UpdateFileUtils:
                 return
             
             # 转换为Paper对象列表
-            existing_papers = self.excel_to_paper(df, only_non_system=True)
+            existing_papers = self.excel_to_paper(df, only_non_system=True, skip_invalid=False)
             
             # 匹配并更新AI字段
             for ai_paper in papers:
@@ -395,9 +404,9 @@ class UpdateFileUtils:
                             if new_value:
                                 setattr(existing_paper, field, new_value)
                         break
-            
+            backup_file(file_path, self.backup_dir)
             # 转换回DataFrame并保存
-            new_df = self.paper_to_excel(existing_papers, only_non_system=True)
+            new_df = self.paper_to_excel(existing_papers, only_non_system=True, skip_invalid=False)
             self.write_excel_file(file_path, new_df)
             
         except Exception as e:
@@ -533,29 +542,53 @@ class UpdateFileUtils:
         """
         if raw_val is None:
             return ""
-        val = str(raw_val).strip()
-        if not val:
+        s = str(raw_val).strip()
+        if not s:
             return ""
-        
-        # 先应用分类变更列表：检查是否有旧unique_name需要转换为新unique_name
+
+        # 支持多分类输入，可能以 ';' 或中文 '；' 分隔
+        parts = [p.strip() for p in re.split(r'[;；]', s) if p.strip()]
+        if not parts:
+            return ""
+
+        # 最大允许分类数（从配置中读取，若无则默认4）
+        try:
+            max_allowed = int(config_instance.settings['database'].get('max_categories_per_paper', 4))
+        except Exception:
+            max_allowed = 4
+
+        out = []
+        seen = set()
+
+        # 先获取变更列表，方便快速替换
         categories_change_list = config_instance.get_categories_change_list()
-        for change_rule in categories_change_list:
-            old_unique_name = change_rule.get('old_unique_name', '').strip()
-            new_unique_name = change_rule.get('new_unique_name', '').strip()
-            if old_unique_name and new_unique_name and val == old_unique_name:
-                # 找到匹配的变更规则，应用转换
-                print(f"应用分类变更规则：'{old_unique_name}' -> '{new_unique_name}'")
-                val = new_unique_name
+
+        for raw_part in parts:
+            val = raw_part
+            # 应用分类变更规则（针对 unique_name）
+            for change_rule in categories_change_list:
+                old_unique_name = change_rule.get('old_unique_name', '').strip()
+                new_unique_name = change_rule.get('new_unique_name', '').strip()
+                if old_unique_name and new_unique_name and val == old_unique_name:
+                    val = new_unique_name
+                    break
+
+            # 通过 name 或 unique_name 查询分类，优先 unique_name
+            category = config_instance.get_category_by_name_or_unique_name(val)
+            if category:
+                uname = category.get('unique_name', '').strip()
+            else:
+                uname = val
+
+            if not uname or uname in seen:
+                continue
+
+            seen.add(uname)
+            out.append(uname)
+            if len(out) >= max_allowed:
                 break
-        
-        # 使用 get_category_by_name_or_unique_name 方法查询分类
-        # 该方法支持 unique_name 和 name 查询，并在使用 name 时输出警告
-        category = config_instance.get_category_by_name_or_unique_name(val)
-        if category:
-            return category.get('unique_name', '')
-        
-        # 若无法匹配，返回原值的字符串形式
-        return val
+
+        return ";".join(out)
 
 
     def normalize_dataframe_columns(self,df, config_instance) -> Any:
@@ -641,9 +674,15 @@ class UpdateFileUtils:
         return normalized_list
     
     #===================数据规范化===========================
-    def json_to_paper(self, json_data: Union[Dict, List[Dict]], only_non_system: bool = False) -> List[Paper]:
+    def json_to_paper(self, json_data: Union[Dict, List[Dict]], only_non_system: bool = False, skip_invalid: bool = False) -> List[Paper]:
         """
         数据规范化方法：将JSON数据转换为Paper对象列表
+        
+        Args:
+            json_data: JSON数据（字典或字典列表）
+            only_non_system: 是否仅包含非系统字段
+            skip_invalid: 是否跳过验证失败的论文。False时保留所有论文（包括验证失败的），True时跳过验证失败的论文。
+                         默认为False，用于保护数据库中现有的论文数据，即使验证失败也不丢失。
         """
         # 统一处理为列表
         if isinstance(json_data, dict):
@@ -675,8 +714,12 @@ class UpdateFileUtils:
                 )
                 
                 if not valid:
-                    print(f"警告: 跳过验证失败的论文: {paper.title[:50]}...")
-                    continue
+                    if skip_invalid:
+                        print(f"警告: 跳过验证失败的论文: {paper.title[:50]}...")
+                        continue
+                    else:
+                        # 保留验证失败的论文（用于保护已存在数据库的数据）
+                        print(f"警告: 保留验证失败的论文: {paper.title[:50]}...")
                 
                 papers.append(paper)
             except Exception as e:
@@ -685,9 +728,15 @@ class UpdateFileUtils:
         
         return papers
     
-    def excel_to_paper(self, df, only_non_system: bool = False) -> List[Paper]:
+    def excel_to_paper(self, df, only_non_system: bool = False, skip_invalid: bool = False) -> List[Paper]:
         """
         数据规范化方法：将Excel数据转换为Paper对象列表
+        
+        Args:
+            df: Excel DataFrame
+            only_non_system: 是否仅包含非系统字段
+            skip_invalid: 是否跳过验证失败的论文。False时保留所有论文（包括验证失败的），True时跳过验证失败的论文。
+                         默认为False，用于保护数据库中现有的论文数据，即使验证失败也不丢失。
         """
         try:
             import pandas as pd
@@ -723,8 +772,12 @@ class UpdateFileUtils:
                 )
                 
                 if not valid:
-                    print(f"警告: 跳过验证失败的论文: {paper.title[:50]}...")
-                    continue
+                    if skip_invalid:
+                        print(f"警告: 跳过验证失败的论文: {paper.title[:50]}...")
+                        continue
+                    else:
+                        # 保留验证失败的论文（用于保护已存在数据库的数据）
+                        print(f"警告: 保留验证失败的论文: {paper.title[:50]}...")
                 
                 papers.append(paper)
             except Exception as e:
@@ -733,12 +786,14 @@ class UpdateFileUtils:
         
         return papers
     
-    def paper_to_json(self, papers: Union[Paper, List[Paper]]) -> Union[Dict, List[Dict]]:
+    def paper_to_json(self, papers: Union[Paper, List[Paper]], skip_invalid: bool = False) -> Union[Dict, List[Dict]]:
         """
         数据规范化方法：将Paper对象（或列表）转换为JSON可序列化的字典（或字典列表）
         
         Args:
             papers: Paper对象或Paper对象列表
+            skip_invalid: 是否跳过包含invalid_fields的论文。False时保留所有论文（包括不规范的），True时跳过不规范的论文。
+                         默认为False，用于保护数据库中现有的论文数据，即使有invalid_fields也不丢失。
             
         Returns:
             如果是单个Paper返回字典，如果是列表返回字典列表
@@ -755,6 +810,11 @@ class UpdateFileUtils:
         result = []
         for paper in papers_list:
             try:
+                # 检查是否应跳过该论文
+                if skip_invalid and getattr(paper, 'invalid_fields', ""):
+                    print(f"警告: 跳过包含invalid_fields的论文: {paper.title[:50]}...")
+                    continue
+                
                 paper_dict = self._paper_to_dict(paper)
                 result.append(paper_dict)
             except Exception as e:
@@ -766,13 +826,15 @@ class UpdateFileUtils:
             return result[0]
         return result
     
-    def paper_to_excel(self, papers: Union[Paper, List[Paper]], only_non_system: bool = False) :
+    def paper_to_excel(self, papers: Union[Paper, List[Paper]], only_non_system: bool = False, skip_invalid: bool = False) :
         """
         数据规范化方法：将Paper对象（或列表）转换为Excel DataFrame
         
         Args:
             papers: Paper对象或Paper对象列表
             only_non_system: 是否只包含非系统字段
+            skip_invalid: 是否跳过包含invalid_fields的论文。False时保留所有论文（包括不规范的），True时跳过不规范的论文。
+                         默认为False，用于保护数据库中现有的论文数据，即使有invalid_fields也不丢失。
             
         Returns:
             DataFrame
@@ -809,6 +871,12 @@ class UpdateFileUtils:
                 if not isinstance(paper, Paper):
                     print(f"警告: 跳过非Paper实例: {type(paper)}")
                     continue
+                
+                # 检查是否应跳过该论文
+                if skip_invalid and getattr(paper, 'invalid_fields', ""):
+                    print(f"警告: 跳过包含invalid_fields的论文: {paper.title[:50]}...")
+                    continue
+                
                 row_data = self._paper_to_excel_row(paper, tags)
                 data.append(row_data)
             except Exception as e:

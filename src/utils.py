@@ -269,6 +269,54 @@ def validate_date(date_str: Any) -> Tuple[bool, str]:
 
     except (ValueError, IndexError):
         return (False, original_val)
+
+
+def validate_invalid_fields(invalid_fields: str) -> Tuple[bool, str]:
+    """
+    验证 invalid_fields 字段
+    invalid_fields 是逗号或中文逗号分隔的字段 order 列表，每个都应该是非负整数（>= 0）
+    
+    流程：
+    1. 如果为空，返回有效
+    2. 按 , 或 ， 分割
+    3. 验证每个部分是否都是非负整数
+    4. 返回验证结果和错误信息
+    
+    参数:
+        invalid_fields: 逗号分隔的字段order列表
+    
+    返回: (是否有效, 错误信息)
+    """
+    if not invalid_fields or str(invalid_fields).strip() == "":
+        return (True, "")
+    
+    invalid_fields_str = str(invalid_fields).strip()
+    
+    # 使用正则表达式按 , 或 ， 分割
+    parts = re.split(r'[,，]', invalid_fields_str)
+    
+    # 过滤空字符串
+    parts = [p.strip() for p in parts if p.strip()]
+    
+    if not parts:
+        return (True, "")
+    
+    # 验证每个部分是否都是非负整数
+    for part in parts:
+        # 检查是否全是数字
+        if not part.isdigit():
+            return (False, f"invalid_fields 中含有非整数值: '{part}'（应该是非负整数）")
+        
+        # 检查是否是非负整数（即 >= 0）
+        try:
+            value = int(part)
+            if value < 0:
+                return (False, f"invalid_fields 中含有负数: {value}（应该是非负整数）")
+        except ValueError:
+            return (False, f"invalid_fields 中含有无法转换为整数的值: '{part}'")
+    
+    return (True, "")
+
     
 def extract_doi_from_url(url: str) -> Optional[str]:
     """从URL中提取DOI"""

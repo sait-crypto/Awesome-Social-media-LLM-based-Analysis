@@ -2,7 +2,7 @@
 数据库管理器
 处理Excel数据库的读写操作
 """
-import os,sys
+import os,sys,re
 import pandas as pd
 import openpyxl
 from openpyxl.styles import PatternFill, Font
@@ -133,19 +133,40 @@ class DatabaseManager:
  
         self.update_utils.apply_excel_formatting(workbook, worksheet, df)
         
-        # 标记冲突行
-        conflict_row_name=self.config.get_tag_field("conflict_marker","table_name")
+        # 标记冲突行，同时对 invalid_fields 单元格上色
+        conflict_row_name = self.config.get_tag_field("conflict_marker", "table_name")
+        invalid_row_name = self.config.get_tag_field("invalid_fields", "table_name")  # 从config获取正确的表列名
+        
         if conflict_row_name in df.columns:
-            conflict_fill = PatternFill(start_color="FFCCCC", end_color="FFCCCC", fill_type="solid")
-            
+            # 颜色优先从配置中读取
+            conflict_color = self.settings.get('excel', {}).get('conflict_fill_color', 'FFCCCC')
+            conflict_fill = PatternFill(start_color=conflict_color, end_color=conflict_color, fill_type="solid")
+
+            # invalid_fields 列的单元格填充颜色
+            invalid_color = self.settings.get('excel', {}).get('invalid_fill_color', 'FF0000')
+            invalid_fill = PatternFill(start_color=invalid_color, end_color=invalid_color, fill_type="solid")
+
+            invalid_col_letter = None
+            if invalid_row_name and invalid_row_name in df.columns:
+                invalid_col_letter = get_column_letter(df.columns.get_loc(invalid_row_name) + 1)
+
             for idx, row in df.iterrows():
-                if row.get(conflict_row_name) not in [False,0,None,"False","FALSE","false","","0"]:
+                if row.get(conflict_row_name) not in [False, 0, None, "False", "FALSE", "false", "", "0"]:
                     for cell in worksheet[idx + 2]:  # +2因为标题行是1，索引从0开始
                         cell.fill = conflict_fill
-                        #如果列名是doi，就在该cell内容前加冲突标记
-                        if cell.value and cell.column_letter == get_column_letter(df.columns.get_loc('doi') + 1)\
-                            and cell.value.startswith(self.conflict_marker)==False:
+                        # 如果列名是doi，就在该cell内容前加冲突标记
+                        if cell.value and cell.column_letter == get_column_letter(df.columns.get_loc('doi') + 1) \
+                                and cell.value.startswith(self.conflict_marker) == False:
                             cell.value = f"{self.conflict_marker} {cell.value}"
+
+                # 对 invalid_fields指定的列单独着色（如果存在并且有内容）
+                if row.get(invalid_row_name) not in [False,None, "False", "FALSE", "false", "", "0"]:
+                    inval_value = row.get(invalid_row_name)
+                    split_result = re.split(r'[,，]', inval_value)
+                    invalid_fields = [int(item.strip()) for item in split_result if item.strip()]
+                    
+                    for field in invalid_fields:
+                        worksheet[idx+2][field].fill = invalid_fill 
         else:
             print(f"添加论文冲突格式时，发现数据库表格没有conflict_marker列")
 
@@ -174,7 +195,7 @@ class DatabaseManager:
     
     
     #唯一对外接口
-    def add_papers(self, new_papers: List[Paper], conflict_resolution: str = 'mark') -> Tuple[List[Paper], List[Paper]]:
+    def add_papers(self, new_papers: List[Paper], conflict_resolution: str = 'mark') -> Tuple[List[Paper], List[Paper],List[Paper] ]:
         """
         添加新论文到数据库，同时验证冲突
         
@@ -183,11 +204,27 @@ class DatabaseManager:
             conflict_resolution: 冲突解决策略 ('mark', 'skip', 'replace')
         
         返回:
-            Tuple[成功添加的论文列表, 冲突论文列表（被标记后需要加入数据库的）]
+            Tuple[成功添加的论文列表, 冲突论文列表（被标记后需要加入数据库的）,验证失败论文列表]
         """
         # 加载现有数据库
         df = self.load_database()
-        old_papers = self.update_utils.excel_to_paper(df, only_non_system=False)
+        old_papers = self.update_utils.excel_to_paper(df, only_non_system=False, skip_invalid=False)
+
+        # 统一验证所有已写入数据库的论文条目（用于提醒用户修正不规范条目）
+        invalid_msg = []
+        invalid_count = 0
+        for p in old_papers:
+            try:
+                valid, errors = p.validate_paper_fields(self.config, check_required=True, check_non_empty=True)
+                if not valid or getattr(p, 'invalid_fields', ""):
+                    invalid_count += 1
+                    invalid_msg_str = f"论文 '{p.title[:50]}' ，invalid_fields={p.invalid_fields}，错误示例: {errors[:3]}"
+                    #print(invalid_msg_str)
+                    invalid_msg.append(invalid_msg_str)
+            except Exception as e:
+                print(f"验证已存在论文时出错: {e}")
+        # if invalid_count:
+        #     print(f"⚠ 注意：数据库中共有 {invalid_count} 条论文包含不规范字段，所在单元格已标红，请手动修正（不影当前续添加/保存操作）。")
 
         # non_conflict_papers存储结构: [(主论文, [冲突论文1, 冲突论文2, ...]), ...]
         non_conflict_papers: List[Tuple[Paper, List[Paper]]] = []    
@@ -309,20 +346,20 @@ class DatabaseManager:
                 sorted_all_papers.append(main_paper)
         
         # 保存更新后的数据库
-        df = self.update_utils.paper_to_excel(sorted_all_papers, only_non_system=False)
+        df = self.update_utils.paper_to_excel(sorted_all_papers, only_non_system=False, skip_invalid=False)
         password = self.get_password()
         success = self.save_database(df, password)
         
         if success:
-            return added_papers, conflict_papers
+            return added_papers, conflict_papers, invalid_msg
         else:
             print("保存数据库失败，添加的论文未能保存")
-            return [], new_papers
+            return [], new_papers, invalid_msg
     
     def update_paper(self, paper: Paper, updates: Dict[str, Any]) -> bool:
         """更新单篇论文"""
         df = self.load_database()
-        papers = self.update_utils.excel_to_paper(df,only_non_system=False)
+        papers = self.update_utils.excel_to_paper(df,only_non_system=False, skip_invalid=False)
         success = False
 
         updated_papers=[]
@@ -344,7 +381,7 @@ class DatabaseManager:
                 updated_papers.append(paper)
                 
         # 保存更新
-        df = self.update_utils.paper_to_excel(updated_papers,only_non_system=False) 
+        df = self.update_utils.paper_to_excel(updated_papers,only_non_system=False, skip_invalid=False) 
         password = self.get_password()
         return self.save_database(df, password)
         
@@ -352,7 +389,7 @@ class DatabaseManager:
     def delete_paper(self, paper: Paper) -> bool:
         """删除单篇论文"""
         df = self.load_database()
-        papers = self.update_utils.excel_to_paper(df,only_non_system=False)
+        papers = self.update_utils.excel_to_paper(df,only_non_system=False, skip_invalid=False)
         
         # 过滤掉要删除的论文
         filtered_papers = [p for p in papers if not is_same_identity(p, paper)]

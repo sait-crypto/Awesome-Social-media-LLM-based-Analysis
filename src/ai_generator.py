@@ -5,7 +5,7 @@ AI生成器
 import os
 import json
 import requests
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 import time
 from dataclasses import asdict
 from src.core.update_file_utils import get_update_file_utils
@@ -275,19 +275,21 @@ class AIGenerator:
         
         return None
     
-    def enhance_paper_with_ai(self, paper: Paper) -> Paper:
+    def enhance_paper_with_ai(self, paper: Paper) -> Tuple[Paper, bool]:
         """使用AI增强论文信息"""
         if not self.is_available():
-            return paper
+            return paper,False 
         
         enhanced_paper = Paper.from_dict(asdict(paper))
 
+        is_enhanced=False
         # 仅在无翻译或有标记已弃用时才覆盖，避免覆盖用户手动填写和ai已经生成的满意总结
         # 1. 生成标题翻译
         if not enhanced_paper.title_translation or self.value_deprecation_mark in str(enhanced_paper.title_translation):
             translation = self.generate_title_translation(enhanced_paper)
             if translation:
                 enhanced_paper.title_translation = translation
+                is_enhanced=True
         
         # 2. 生成类比总结
         if not enhanced_paper.analogy_summary or self.value_deprecation_mark in str(enhanced_paper.analogy_summary):
@@ -296,6 +298,7 @@ class AIGenerator:
             )
             if summary:
                 enhanced_paper.analogy_summary = summary
+                is_enhanced=True
         
         # 3. 生成一句话总结字段
         for field in ['summary_motivation', 'summary_innovation', 'summary_method',
@@ -306,20 +309,21 @@ class AIGenerator:
                 value = self.generate_summary_fields(enhanced_paper, field)
 
                 setattr(enhanced_paper, field, value)
+                is_enhanced=True
         
-        return enhanced_paper
+        return enhanced_paper,is_enhanced
     
-    def batch_enhance_papers(self, papers: List[Paper]) -> List[Paper]:
+    def batch_enhance_papers(self, papers: List[Paper]) -> Tuple[List[Paper],bool]:
         """批量增强论文信息"""
         if not self.is_available():
-            return papers
-        
+            return papers,False
+        is_enhanced=False
         enhanced_papers = []
         for i, paper in enumerate(papers):
             print(f"AI处理论文 {i+1}/{len(papers)}: {paper.title[:50]}...")
-            enhanced_paper = self.enhance_paper_with_ai(paper)
+            enhanced_paper, is_enhanced = self.enhance_paper_with_ai(paper)
             enhanced_papers.append(enhanced_paper)
             # 避免API频率限制
             time.sleep(1)
         
-        return enhanced_papers
+        return enhanced_papers,is_enhanced

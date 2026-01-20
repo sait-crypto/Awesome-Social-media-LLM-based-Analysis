@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../'))
 from src.utils import (
     validate_url, validate_doi, clean_doi, format_authors,
     validate_authors, normalize_pipeline_image, validate_pipeline_image,validate_date,
-    get_current_timestamp
+    get_current_timestamp, validate_invalid_fields
 )
 
 
@@ -60,6 +60,8 @@ class Paper:
     status: str = ""  # "" "unread" "reading" "done" "adopted"
     submission_time: str = ""
     conflict_marker: bool = False
+    # 验证相关字段：记录不规范字段的 order 列表（逗号分隔）
+    invalid_fields: str = ""
     
     def __post_init__(self):
         """初始化后处理"""
@@ -126,24 +128,67 @@ class Paper:
             (是否有效, 错误信息列表)
         """
         errors = []
+        invalid_vars = set()
         
         # 获取配置
         conflict_marker = config_instance.settings['database'].get('conflict_marker')
         required_tags = config_instance.get_required_tags() if check_required else []
         active_tags = config_instance.get_active_tags()
+
+        # 规范化 category 字段：支持多分类（用 ; 或 中文； 分隔），去重并限制最大数量
+        try:
+            if getattr(self, 'category', None):
+                raw_cat = str(self.category)
+                # 使用 update_file_utils 的方法进行统一规范化（若可用）
+                try:
+                    from src.core.update_file_utils import UpdateFileUtils
+                    ufu = UpdateFileUtils()
+                    normalized = ufu.normalize_category_value(raw_cat, config_instance)
+                except Exception:
+                    # 回退实现：手动分割并映射到 unique_name（保守处理）
+                    parts = [p.strip() for p in re.split(r'[;；]', raw_cat) if p.strip()]
+                    seen = set()
+                    out = []
+                    try:
+                        max_allowed = int(config_instance.settings['database'].get('max_categories_per_paper', 4))
+                    except Exception:
+                        max_allowed = 4
+                    for part in parts:
+                        cat = config_instance.get_category_by_name_or_unique_name(part)
+                        uname = cat.get('unique_name') if cat else part
+                        if uname not in seen:
+                            seen.add(uname)
+                            out.append(uname)
+                        if len(out) >= max_allowed:
+                            break
+                    normalized = ";".join(out)
+                # 写回规范化结果
+                self.category = normalized
+        except Exception:
+            # 规范化失败不阻断后续验证
+            pass
         
         # 1. 特殊字段验证
+        # 验证 invalid_fields 字段格式
+        if self.invalid_fields:
+            invalid_fields_valid, invalid_fields_error = validate_invalid_fields(self.invalid_fields)
+            if not invalid_fields_valid:
+                errors.append(f"invalid_fields 字段格式无效: {invalid_fields_error}")
+                invalid_vars.add('invalid_fields')
+        
         # DOI验证
         if self.doi:
             doi_valid, cleaned_doi = validate_doi(self.doi, check_format=True, conflict_marker=conflict_marker)
             if not doi_valid and check_non_empty:
                 errors.append(f"DOI格式无效: {self.doi}")
+                invalid_vars.add('doi')
         
         # 作者验证
         if self.authors:
             authors_valid, formatted_authors = validate_authors(self.authors)
             if not authors_valid and check_non_empty:
                 errors.append(f"作者格式无效")
+                invalid_vars.add('authors')
         
         # Pipeline图片验证
         if self.pipeline_image:
@@ -151,6 +196,7 @@ class Paper:
             pipeline_valid, normalized_path = validate_pipeline_image(self.pipeline_image, figure_dir)
             if not pipeline_valid and check_non_empty:
                 errors.append(f"Pipeline图片格式无效: {self.pipeline_image}")
+                invalid_vars.add('pipeline_image')
             elif pipeline_valid:
                 # 更新规范化后的路径
                 self.pipeline_image = normalized_path
@@ -158,15 +204,18 @@ class Paper:
         # URL验证
         if self.paper_url and not validate_url(self.paper_url) and check_non_empty:
             errors.append(f"论文链接格式无效: {self.paper_url}")
+            invalid_vars.add('paper_url')
         
         if self.project_url and not validate_url(self.project_url) and check_non_empty:
             errors.append(f"项目链接格式无效: {self.project_url}")
+            invalid_vars.add('project_url')
         
         # 日期验证
         if self.date:
             date_valid, formatted_date = validate_date(self.date)
             if not date_valid and check_non_empty:
                 errors.append(f"日期格式无效: {self.date} (应为 YYYY-MM-DD)")
+                invalid_vars.add('date')
                 
         # 2. 必填字段检查
         if check_required:
@@ -177,6 +226,7 @@ class Paper:
                 
                 if not value or str(value).strip() == "":
                     errors.append(f"必填字段为空: {display_name} ({var_name})")
+                    invalid_vars.add(var_name)
         
         # 3. 非空字段检查（类型验证和validation字段验证）
         if check_non_empty:
@@ -195,30 +245,78 @@ class Paper:
                 if tag_type == 'bool':
                     if str(value).lower() not in ['true', 'false', 'yes', 'no', '1', '0', 'y', 'n']:
                         errors.append(f"字段类型不匹配: {display_name} 应为布尔值")
-                elif tag_type == 'enum' and var_name == 'category':
-                    # 验证分类是否有效
-                    valid_categories = [cat['unique_name'] for cat in config_instance.get_active_categories()]
-                    if value not in valid_categories:
-                        errors.append(f"分类无效: {value}，分类须为categories_config.py中已启用的分类")
+                        invalid_vars.add(var_name)
+                elif (str(tag_type).startswith('enum')) and var_name == 'category':
+                    # 支持多分类，先按 ';' 分割
+                    try:
+                        parts = [p.strip() for p in re.split(r'[;；]', str(value)) if p.strip()]
+                    except Exception:
+                        parts = [str(value).strip()]
+
+                    valid_categories = {cat['unique_name'] for cat in config_instance.get_active_categories()}
+
+                    # 检查重复（原始输入是否包含重复项）
+                    if len(parts) != len(list(dict.fromkeys(parts))):
+                        errors.append(f"分类包含重复项: {value}")
+                        invalid_vars.add(var_name)
+
+                    # 检查每一项是否合法
+                    for p in parts:
+                        if p not in valid_categories:
+                            errors.append(f"分类无效: {p}，分类须为categories_config.py中已启用的分类")
+                            invalid_vars.add(var_name)
+
+                    # 检查数量不超过配置限制
+                    try:
+                        max_allowed = int(config_instance.settings['database'].get('max_categories_per_paper', 4))
+                    except Exception:
+                        max_allowed = 4
+                    if len(parts) > max_allowed:
+                        errors.append(f"分类数量超过限制: 最多允许 {max_allowed} 个分类")
+                        invalid_vars.add(var_name)
                 elif tag_type == 'int':
                     try:
                         int(value)
                     except ValueError:
                         errors.append(f"字段类型不匹配: {display_name} 应为整数")
+                        invalid_vars.add(var_name)
                 elif tag_type == 'float':
                     try:
                         float(value)
                     except ValueError:
                         errors.append(f"字段类型不匹配: {display_name} 应为浮点数")
+                        invalid_vars.add(var_name)
                 
                 # validation字段验证（正则表达式）
                 if validation_pattern:
                     try:
                         if not re.match(validation_pattern, str(value)):
                             errors.append(f"字段格式无效: {display_name} 不符合验证规则")
+                            invalid_vars.add(var_name)
                     except re.error:
                         # 如果正则表达式有问题，跳过验证
                         pass
+
+        # 根据 invalid_vars 生成 invalid_fields 字段内容（使用 order），多个用逗号分隔
+        if invalid_vars:
+            # 将 active_tags 按 order 排序，收集变量到 order 映射
+            var_to_order = {}
+            for tag in active_tags:
+                var = tag.get('variable')
+                order = tag.get('order')
+                if var is not None and order is not None:
+                    var_to_order[var] = str(order)
+
+            orders = []
+            for v in sorted(invalid_vars):
+                if v in var_to_order:
+                    orders.append(var_to_order[v])
+            self.invalid_fields = ",".join(orders)
+        else:
+            # 验证完全通过，清空 invalid_fields
+            self.invalid_fields = ""
+
+        return (len(errors) == 0, errors)
         
         return (len(errors) == 0, errors)
     
