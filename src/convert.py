@@ -13,7 +13,7 @@ from core.database_model import Paper
 from src.core.update_file_utils import get_update_file_utils
 from src.utils import truncate_text, format_authors, create_hyperlink, escape_markdown
 import pandas as pd
-from typing import Dict, List
+from typing import Dict, List, Tuple
 import re
 
 from src.core.config_loader import get_config_instance
@@ -92,21 +92,15 @@ class ReadmeGenerator:
             # children_map 的键现在是父类的 unique_name
             child_list = children_map.get(parent.get('unique_name'), [])
 
-            # 先检查是否有任何论文需要显示（父或子有任意一个有论文则显示此父分组）
-            # 计算父类计数（包括其子类的论文），使用论文 key 去重避免多分类重复计算
-            unique_paper_keys = set()
-            for paper in parent_papers:
-                unique_paper_keys.add(paper.get_key())
-            for child in child_list:
-                for paper in papers_by_category.get(child.get('unique_name'), []):
-                    unique_paper_keys.add(paper.get_key())
-            parent_count = len(unique_paper_keys)
+            # 使用统一的计数函数计算论文总数（去重）
+            parent_count,_ = self._get_category_paper_count_and_anchor(parent_key)
 
             has_any = parent_count > 0
 
             if not has_any:
                 continue
 
+            
             # 添加一级分类标题（包含计数）
             markdown_output += f"\n### | {parent_name}  ({parent_count} papers)\n\n"
 
@@ -132,6 +126,66 @@ class ReadmeGenerator:
         s = str(name or "").strip()
         s = re.sub(r'[^A-Za-z0-9\s\-]', '', s)
         return re.sub(r'\s+', '-', s)
+    
+    def _get_category_paper_count_and_anchor(self, unique_name: str) -> Tuple[int,str]:
+        """计算分类的论文总数（去重）
+        
+        自动判断是一级还是二级分类：
+        - 一级分类（primary_category为None）：计算该一级分类及其所有二级分类的论文总数
+        - 二级分类（有primary_category）：只计算该分类的论文总数
+        
+        Args:
+            unique_name: 分类的 unique_name
+        
+        Returns:
+            去重后的论文总数
+        """
+        # 自动加载论文数据
+        try:
+            df = self.db_manager.load_database()
+            if self.is_truncate_translation and df is not None and not df.empty:
+                df = self._truncate_translation_suffix(df)
+            papers = self.update_utils.excel_to_paper(df, only_non_system=False, skip_invalid=True)
+            papers = [p for p in papers if p.conflict_marker == False and p.show_in_readme]
+            papers_by_category = self._group_papers_by_category(papers)
+        except Exception:
+            return 0,''
+        
+        # 获取分类信息
+        category_config = self.config.get_category_by_unique_name(unique_name)
+        if not category_config:
+            return len(papers_by_category.get(unique_name, [])), ''
+        
+        unique_paper_keys = set()
+        
+        # 判断是一级还是二级分类
+        primary_category = category_config.get('primary_category')
+        
+        if primary_category is None:
+            # 一级分类：计算该分类加所有子分类的论文
+            # 先计算该分类本身的论文
+            for paper in papers_by_category.get(unique_name, []):
+                unique_paper_keys.add(paper.get_key())
+            
+            # 再计算所有子分类的论文
+            all_cats = [c for c in self.config.get_active_categories() if c.get('enabled', True)]
+            for cat in all_cats:
+                if cat.get('primary_category') == unique_name:
+                    cat_unique = cat.get('unique_name')
+                    if cat_unique:
+                        for paper in papers_by_category.get(cat_unique, []):
+                            unique_paper_keys.add(paper.get_key())
+
+            count = len(unique_paper_keys)
+            anchor = f"|-{self._slug(category_config.get('name', unique_name))}-{count}-papers"
+        else:
+            # 二级分类：只计算该分类的论文
+            for paper in papers_by_category.get(unique_name, []):
+                unique_paper_keys.add(paper.get_key())
+            count = len(unique_paper_keys)
+            anchor = f"{self._slug(category_config.get('name', unique_name))}-{count}-papers"
+        
+        return count, anchor
     
     def _generate_quick_links(self) -> str:
         """根据 categories 配置生成 Quick Links 列表（插入到表格前）
@@ -162,38 +216,28 @@ class ReadmeGenerator:
         lines = ["### Quick Links", ""]
         for parent in parents:
             name = parent.get('name', parent.get('unique_name'))
-            anchor = self._slug(name)
             # 顶级分类前置两个空格以保持与历史样式一致
-            # 计算父类及其子类的论文数量（包含子类的论文），使用论文 key 去重避免多分类重复计算
+            # 使用统一的计数函数计算论文总数（去重）
             try:
-                # 加载论文并按分类分组以获取计数
-                df = self.db_manager.load_database()
-                if self.is_truncate_translation and df is not None and not df.empty:
-                    df = self._truncate_translation_suffix(df)
-                papers = self.update_utils.excel_to_paper(df, only_non_system=False, skip_invalid=True)
-                papers = [p for p in papers if p.conflict_marker == False and p.show_in_readme]
-                papers_by_category = self._group_papers_by_category(papers)
+                # 获取该父分类的论文总数（包括其子分类）
                 parent_key = parent.get('unique_name')
-                unique_paper_keys = set()
-                for paper in papers_by_category.get(parent_key, []):
-                    unique_paper_keys.add(paper.get_key())
-                for child in children_map.get(parent.get('unique_name'), []):
-                    for paper in papers_by_category.get(child.get('unique_name'), []):
-                        unique_paper_keys.add(paper.get_key())
-                parent_count = len(unique_paper_keys)
+                parent_count, anchor = self._get_category_paper_count_and_anchor(parent_key)
             except Exception:
                 parent_count = 0
+                anchor = ""
 
-            lines.append(f"  - [{name}](#{anchor})  ({parent_count} papers)")
+            lines.append(f"  - [{name}](#{anchor}) ({parent_count} papers)")
+            
             # 添加二级分类（若有），每个子项换行并缩进（再加两个空格）
             for child in children_map.get(parent.get('unique_name'), []):
                 child_name = child.get('name', child.get('unique_name'))
-                child_anchor = self._slug(child_name)
-                # 子类计数
+                # 子类计数（二级分类只计算自己的论文）
                 try:
-                    child_count = len(papers_by_category.get(child.get('unique_name'), []))
+                    child_unique = child.get('unique_name')
+                    child_count, child_anchor = self._get_category_paper_count_and_anchor(child_unique)
                 except Exception:
                     child_count = 0
+                    child_anchor = ""
                 lines.append(f"    - [{child_name}](#{child_anchor}) ({child_count} papers)")
 
         return "\n".join(lines)
@@ -310,7 +354,8 @@ class ReadmeGenerator:
                 for uname in parts:
                     # 获取分类显示名
                     display = self.config.get_category_field(uname, 'name') or uname
-                    anchor = self._slug(display)
+                    count, anchor = self._get_category_paper_count_and_anchor(uname)  # 仅用于生成锚点，自动加载数据
+                    anchor = f"{self._slug(display)}-{count}-papers"
                     links.append(f"[{display}](#{anchor})")
                 links_str = ", ".join(links)
                 multi_line = f" <br> <span style=\"color:blue\">multi-category：{links_str}</span>"
