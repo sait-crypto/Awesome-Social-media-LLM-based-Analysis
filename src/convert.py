@@ -177,13 +177,13 @@ class ReadmeGenerator:
                             unique_paper_keys.add(paper.get_key())
 
             count = len(unique_paper_keys)
-            anchor = f"|-{self._slug(category_config.get('name', unique_name))}-{count}-papers"
+            anchor = self._slug(f"|-{category_config.get('name', unique_name)} {count} papers")
         else:
             # 二级分类：只计算该分类的论文
             for paper in papers_by_category.get(unique_name, []):
                 unique_paper_keys.add(paper.get_key())
             count = len(unique_paper_keys)
-            anchor = f"{self._slug(category_config.get('name', unique_name))}-{count}-papers"
+            anchor = self._slug(f"{category_config.get('name', unique_name)} {count} papers")
         
         return count, anchor
     
@@ -355,7 +355,6 @@ class ReadmeGenerator:
                     # 获取分类显示名
                     display = self.config.get_category_field(uname, 'name') or uname
                     count, anchor = self._get_category_paper_count_and_anchor(uname)  # 仅用于生成锚点，自动加载数据
-                    anchor = f"{self._slug(display)}-{count}-papers"
                     links.append(f"[{display}](#{anchor})")
                 links_str = ", ".join(links)
                 multi_line = f" <br> <span style=\"color:blue\">multi-category：{links_str}</span>"
