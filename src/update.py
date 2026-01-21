@@ -222,12 +222,7 @@ class UpdateProcessor:
                     result['errors'].append(err)
                     print(f"警告: {err}")
 
-        # 循环结束，整理最终结果
-        if result['new_papers'] > 0 or result['updated_papers'] > 0 or result['ai_generated'] > 0:
-            result['success'] = True
-        elif not result['errors']:
-             # 没有错误，但也没添加任何东西 (可能是文件为空)
-             pass
+
         
         # 整理冲突信息
         conflicts_list = []
@@ -244,6 +239,14 @@ class UpdateProcessor:
         result['conflicts'] = conflicts_list
         # 整理验证失败信息
         result['invalid_msg']=list(dict.fromkeys(total_invalid_msg))#去重
+
+        # 循环结束，整理最终结果
+        if result['new_papers'] > 0 or result['updated_papers'] > 0 or result['ai_generated'] > 0 or result['conflicts']:
+            result['success'] = True
+        elif not result['errors']:
+             # 没有错误，但也没添加或更改任何东西 (可能是文件为空)
+             pass
+        
         return result
     
     
