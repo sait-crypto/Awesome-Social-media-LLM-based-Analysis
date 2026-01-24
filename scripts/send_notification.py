@@ -11,29 +11,34 @@ def send_email():
     smtp_port = os.environ.get('SMTP_PORT')
     
     status = os.environ.get('workflow_status', 'Unknown')
-    pr_branch = os.environ.get('PR_BRANCH', 'Unknown Branch') # 获取分支名
+    pr_branch = os.environ.get('PR_BRANCH', 'Unknown')
+    pr_user = os.environ.get('PR_USER', 'Unknown User') # 新增用户
     
     if not all([sender, password, receiver, smtp_server]):
         print("Skipping email: Missing SMTP configuration.")
         return
 
-    # 读取 update.py 的日志
     log_content = ""
+    # 优先读取 Update 日志，其次是 Validation 日志
     if os.path.exists('update_log.txt'):
         with open('update_log.txt', 'r', encoding='utf-8', errors='ignore') as f:
             log_content = f.read()
+    elif os.path.exists('validation_log.txt'):
+         with open('validation_log.txt', 'r', encoding='utf-8', errors='ignore') as f:
+            log_content = "=== Validation Log (Update not run) ===\n" + f.read()
 
-    subject = f"Paper Submission Process Result: {status}"
+    # 邮件标题包含状态和分支
+    subject = f"[{pr_branch}] PR by @{pr_user}: {status}"
     
     body = f"""
-GitHub Action Workflow Status: {status}
-PR Source Branch: {pr_branch}
+    PR Submitter: {pr_user}
+    PR Branch: {pr_branch}
+    Workflow Status: {status}
     
-======== Update Script Logs ========
+    === Execution Log ===
     {log_content}
     
-====================================
-Please check the repository for details.
+    ==========================
     """
 
     message = MIMEText(body, 'plain', 'utf-8')

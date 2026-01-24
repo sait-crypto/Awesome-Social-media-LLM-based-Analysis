@@ -128,41 +128,50 @@ jobs:
               body: body
             });
 
-      # --- 步骤 4: 提交 (精准控制) ---
+      # --- 步骤 4: 提交 (Commit & Push) ---
       - name: Commit and Push
         if: success()
         env:
           PYTHONPATH: .
         run: |
+          # 1. 配置 Git 用户身份
+          # 需求 0: 使用 PR 提交者的名字，但保留 bot 的邮箱以作区分（或者直接用 bot）
+          # 为了在 Log 中显示，我们在 Commit Message 中带上用户名
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 1. 动态获取 Core Excel 的路径 (需求 3)
-          # 使用 python 从 config 中读取路径
+          # 2. 动态获取 Core Excel 的路径
           CORE_EXCEL_PATH=$(uv run python -c "from src.core.config_loader import get_config_instance; print(get_config_instance().settings['paths']['core_excel'])")
-          echo "Core Excel Path detected: $CORE_EXCEL_PATH"
+          echo "Adding Core Excel: $CORE_EXCEL_PATH"
           
-          # 2. 添加核心文件
-          # paper_database.xlsx (动态路径)
-          git add "$CORE_EXCEL_PATH"
-          # README
+          # 3. 强制添加生成的/修改的核心文件
+          # 使用 -f 强制添加，防止 .gitignore 干扰
+          git add -f "$CORE_EXCEL_PATH"
           git add README.md
-          # Figures 文件夹 (包含新增图片)
+          
+          # 4. 添加图片
+          # 先添加所有 figures 变动
           git add figures/
           
-          # 3. 强制还原模板文件 (需求 3: 拒绝更新文件变更)
-          # 这会将 submit_template.xlsx/json 恢复到 origin/main 的状态
-          git checkout origin/main -- submit_template.xlsx submit_template.json || true
+          # 5. 处理模板文件：
+          # 我们不希望提交模板的变动（因为 update.py 会清空或修改它们）
+          # 使用 git restore --staged 将它们移出暂存区，并还原到 main 状态
+          # git checkout origin/main -- submit_template.xlsx submit_template.json || true
           
-          # 4. 提交
+          # 6. 再次确认暂存区状态
+          echo "Status before commit:"
+          git status
+          
+          # 7. 提交
+          PR_USER="${{ github.event.pull_request.user.login }}"
           if git diff --staged --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "Auto-process: Update database ($CORE_EXCEL_PATH), readme and figures [skip ci]"
+            git commit -m "Auto-process: Update database & figures by @$PR_USER [skip ci]"
             git push
           fi
 
-      # --- 步骤 5: 邮件通知 ---
+      # --- 步骤 5: 邮件通知 (修正发件人显示) ---
       - name: Send Notification
         if: always()
         env:
@@ -173,6 +182,7 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           workflow_status: ${{ job.status }}
-          # 传入 PR 分支名 (需求 0)
+          # 传入更多上下文信息
           PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_USER: ${{ github.event.pull_request.user.login }}
         run: uv run python scripts/send_notification.py
