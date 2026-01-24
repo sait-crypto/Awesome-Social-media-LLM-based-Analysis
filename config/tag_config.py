@@ -305,7 +305,7 @@ TAGS_CONFIG = {
             "system_var": False,            #控制字段，为真时只在数据库中显示               
 
         },
-        # ==================== 数据库内部控制标签，大多数不供提交时手动填写 ====================
+        # ==================== 数据库内部控制标签，不供提交时手动填写，供系统使用 ====================
         {
             "variable": "show_in_readme",
             "order": 19,
@@ -333,7 +333,7 @@ TAGS_CONFIG = {
             "enabled": True,
             "immutable": False,
             "required": False,              
-            "system_var": True,            #控制字段，为真时只在数据库中显示               
+            "system_var": False,            #控制字段，为真时只在数据库中显示               
 
         },
 
@@ -349,7 +349,7 @@ TAGS_CONFIG = {
             "enabled": True,
             "immutable": True,
             "required": False,     
-            "system_var": True,            #控制字段，为真时只在数据库中显示           
+            "system_var": True,                      
         },
         {
             "variable": "conflict_marker",
@@ -363,7 +363,7 @@ TAGS_CONFIG = {
             "enabled": True,
             "immutable": True,
             "required": False,     
-            "system_var": True,            #控制字段，为真时只在数据库中显示           
+            "system_var": True,                     
         },
         {
             "variable": "invalid_fields",
@@ -377,7 +377,7 @@ TAGS_CONFIG = {
             "enabled": True,
             "immutable": True,
             "required": False,     
-            "system_var": True,            #控制字段，为真时只在数据库中显示           
+            "system_var": True,                     
         },
         #占位符论文发生冲突事件时无脑将其替换（暂未实现），需要在更新流程中可见，
         {
@@ -392,7 +392,7 @@ TAGS_CONFIG = {
             "enabled": False,
             "immutable": True,
             "required": False,     #默认为False，对于空值会被自动填充为False
-            "system_var": True,            #控制字段，为真时只在数据库中显示           
+            "system_var": False,                    
         },
         # {
         #     "variable": "is_placeholder",

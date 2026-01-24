@@ -444,7 +444,17 @@ def escape_markdown(text: str) -> str:
         text = text.replace(char, '\\' + char)
     
     return text
-
+def escape_markdown_base(text: str) -> str:
+    """只转义容易引起问题的Markdown字符：反斜杠、方括号、圆括号"""
+    if not text:
+        return ""
+    text = str(text)
+    special_chars = ['\\', '[', ']', '(', ')']
+    
+    for char in special_chars:
+        text = text.replace(char, '\\' + char)
+    
+    return text
 
 def sanitize_filename(filename: str) -> str:
     """清理文件名，移除非法字符"""

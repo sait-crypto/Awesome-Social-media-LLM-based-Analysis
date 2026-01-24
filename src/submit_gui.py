@@ -107,7 +107,8 @@ class PaperSubmissionGUI:
         # 配置网格权重
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(1, weight=1)
+        main_frame.columnconfigure(0, weight=1) # 修正：让第0列（PanedWindow所在列）自动扩展
+        main_frame.columnconfigure(1, weight=1) # 保持兼容性（如果有组件跨列）
         main_frame.rowconfigure(1, weight=1)
         
         # 标题
@@ -118,26 +119,28 @@ class PaperSubmissionGUI:
         )
         title_label.grid(row=0, column=0, columnspan=3, pady=(0, 12))
         
-        # 创建左右两个主要区域
-        left_frame = ttk.Frame(main_frame)
-        left_frame.grid(row=1, column=0, sticky="nsew", padx=(0, 10))
-        
-        # 右侧容器（包含表单和占位提示）
-        self.right_container = ttk.Frame(main_frame)
-        self.right_container.grid(row=1, column=1, sticky="nsew")
-        
-        # 配置左右框架的网格权重
+        # 创建可拖动的分割窗口 (PanedWindow) 代替原来的左右Grid布局
+        self.paned_window = ttk.PanedWindow(main_frame, orient=tk.HORIZONTAL)
+        self.paned_window.grid(row=1, column=0, columnspan=3, sticky="nsew", padx=(0,0), pady=(0,0))
+
+        # 创建左右主要区域的容器
+        left_frame = ttk.Frame(self.paned_window)
+        self.right_container = ttk.Frame(self.paned_window)
+
+        # 配置左右框架内部的网格权重（原逻辑保留）
         left_frame.columnconfigure(0, weight=1)
         left_frame.rowconfigure(1, weight=1)
         self.right_container.columnconfigure(0, weight=1)
         self.right_container.rowconfigure(0, weight=1)
         
-        # 左侧：论文列表
+        # 初始化左右内容
         self.setup_paper_list_frame(left_frame)
-        
-        # 右侧：论文详情表单 (初始化但不显示，等待选择)
         self.setup_paper_form_frame(self.right_container)
         
+        # 将左右框架添加到 PanedWindow
+        self.paned_window.add(left_frame, weight=1)
+        self.paned_window.add(self.right_container, weight=7) # 右侧默认分配更多空间，奇怪差异怎么这大
+
         # 右侧：占位提示 (默认显示)
         self.placeholder_label = ttk.Label(
             self.right_container,
@@ -164,7 +167,7 @@ class PaperSubmissionGUI:
         list_frame.grid(row=1, column=0, sticky="nsew")
         
         # 配置网格权重
-        list_frame.columnconfigure(0, weight=1)
+        list_frame.columnconfigure(1, weight=1)
         list_frame.rowconfigure(0, weight=1)
         
         # 创建Treeview（列表）
@@ -180,21 +183,23 @@ class PaperSubmissionGUI:
         for col in columns:
             self.paper_tree.heading(col, text=col)
             if col == "ID":
-                self.paper_tree.column(col, width=25)
+                self.paper_tree.column(col, width=10)
             elif col == "标题":
                 self.paper_tree.column(col, width=220)
             elif col == "作者":
                 self.paper_tree.column(col, width=80)
             else:
-                self.paper_tree.column(col, width=150)
+                self.paper_tree.column(col, width=120)
         
         # 设置滚动条
         scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.paper_tree.yview)
         self.paper_tree.configure(yscrollcommand=scrollbar.set)
         
         # 网格布局
-        self.paper_tree.grid(row=0, column=0, sticky="nsew")
-        scrollbar.grid(row=0, column=1, sticky="ns")
+        self.paper_tree.grid(row=0, column=1, sticky="nsew")
+        scrollbar.grid(row=0, column=0, sticky="ns")
+    
+
         
         # 绑定选择事件
         self.paper_tree.bind('<<TreeviewSelect>>', self.on_paper_selected)
@@ -367,6 +372,11 @@ class PaperSubmissionGUI:
                 combo.bind("<Enter>", lambda e: self._unbind_global_scroll())
                 combo.bind("<Leave>", lambda e: self._bind_global_scroll(self.form_canvas.yview_scroll))
                 
+                # 明确禁止滚动穿透
+                combo.bind("<MouseWheel>", lambda e: "break")
+                combo.bind("<Button-4>", lambda e: "break")
+                combo.bind("<Button-5>", lambda e: "break")
+                
                 self.form_fields[variable] = combo
                 self.field_widgets[variable] = combo
 
@@ -449,6 +459,11 @@ class PaperSubmissionGUI:
         # 绑定进入事件以处理滚动
         combo.bind("<Enter>", lambda e: self._unbind_global_scroll())
         combo.bind("<Leave>", lambda e: self._bind_global_scroll(self.form_canvas.yview_scroll))
+        
+        # 明确禁止滚动穿透，防止滚动下拉框时带动Canvas
+        combo.bind("<MouseWheel>", lambda e: "break")
+        combo.bind("<Button-4>", lambda e: "break")
+        combo.bind("<Button-5>", lambda e: "break")
         
         combo.bind("<Enter>", lambda e, c=combo: self._show_category_tooltip(c), add='+')
         combo.bind("<Leave>", lambda e: self._hide_inline_tooltip(), add='+')
@@ -808,7 +823,7 @@ class PaperSubmissionGUI:
         if variable in ['title', 'authors']:
             self._refresh_list_item(self.current_paper_index)
 
-    def _on_category_change(self):
+    def _on_category_change(self, variable=None, widget_or_var=None):
         if getattr(self, '_disable_callbacks', False):
             return
         if self.current_paper_index < 0:
@@ -897,7 +912,7 @@ class PaperSubmissionGUI:
         
         self._apply_widget_style(variable, is_valid, is_required, is_empty)
 
-    def _validate_all_fields_visuals(self):
+    def _validate_all_fields_visuals(self, variable=None, widget_or_var=None):
         if self.current_paper_index < 0: return
         paper = self.papers[self.current_paper_index]
         

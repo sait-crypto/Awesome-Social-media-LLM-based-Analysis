@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from core.database_manager import DatabaseManager
 from core.database_model import Paper
 from src.core.update_file_utils import get_update_file_utils
-from src.utils import truncate_text, format_authors, create_hyperlink, escape_markdown
+from src.utils import truncate_text, format_authors, create_hyperlink, escape_markdown,escape_markdown_base
 import pandas as pd
 from typing import Dict, List, Tuple
 import re
@@ -315,11 +315,12 @@ class ReadmeGenerator:
         # 清理和格式化
         # 标题不使用过度转义（避免将 '-' 或 '.' 变为 '\\-' 或 '\\.'），交给 create_hyperlink 的内部转义处理
         title = truncate_text(paper.title, self.max_title_length)
-        if self.enable_markdown==False:
-            authors = escape_markdown(format_authors(paper.authors, self.max_authors_length))
-        else:
+        title=self._sanitize_field(title)
+        authors = self._sanitize_field(format_authors(paper.authors, self.max_authors_length))
+        if self.enable_markdown:
             # 通信作者符号*必须保留
-            authors=format_authors(paper.authors, self.max_authors_length).replace('*', '\\' + '*')
+            authors=authors.replace('*', '\\' + '*')
+
         date = paper.date if paper.date else ""
         
         # 如果有会议信息，添加会议徽章
@@ -376,10 +377,9 @@ class ReadmeGenerator:
         if not paper.analogy_summary:
             return ""
         
-        
         analogy = paper.analogy_summary.strip()
-        if self.enable_markdown==False:
-            analogy=escape_markdown(analogy)
+        analogy = self._sanitize_field(analogy)
+
         return analogy
     
     def _sanitize_field(self, text: str) -> str:
@@ -393,6 +393,8 @@ class ReadmeGenerator:
         s = s.replace('\r\n', '\n').replace('\r', '\n')
         if self.enable_markdown==False:
             s = escape_markdown(s)
+        else:
+            s = escape_markdown_base(s)
         s = s.replace('\n', '<br>')
         return s
 
