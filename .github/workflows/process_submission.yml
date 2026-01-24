@@ -179,6 +179,8 @@ jobs:
         env:
           CORE_EXCEL_PATH: ${{ env.CORE_EXCEL_PATH }}
         run: |
+          PR_USER="${{ github.event.pull_request.user.login }}"
+
           # 丢弃所有未提交的更改，避免 checkout main 失败
           git reset --hard
           
@@ -189,13 +191,13 @@ jobs:
           # 动态获取 Core Excel 的路径
           CORE_EXCEL_PATH=$(uv run python -c "from src.core.config_loader import get_config_instance; print(get_config_instance().settings['paths']['core_excel'])")
           echo "Adding Core Excel: $CORE_EXCEL_PATH"
-          
+
           # 用 PR 分支的最新文件覆盖 main
           git checkout ${{ github.event.pull_request.head.ref }} -- "$CORE_EXCEL_PATH" README.md figures/
 
           # 添加并提交三个文件（夹）的更改
           git add "$CORE_EXCEL_PATH" README.md figures/
-          git commit -m "Auto-overwrite: Sync selected files from PR branch to main [skip ci]" || echo "Nothing to commit"
+          git commit -m ": Contribution by @$PR_USER: branches auto-merged from PR branch to main [skip ci]" || echo "Nothing to commit"
 
           # 推送到 main 分支
           git push origin main
