@@ -44,14 +44,68 @@ jobs:
         run: uv sync --frozen
 
       # 步骤 1: 验证提交 (Validate)
+      # 修改点：增加 id，开启 pipefail，并使用 tee 同时输出到屏幕和文件
       - name: Validate Submission
         id: validate
         env:
           PYTHONPATH: .
+        shell: bash
         run: |
-          # 获取本次 PR 变动的文件列表，传给脚本
+          # 获取变更文件列表
           git diff --name-only origin/main...HEAD > changed_files.txt
-          uv run python scripts/validate_submission.py
+          
+          # set -o pipefail 确保如果 python 脚本失败，整个步骤也会被标记为失败
+          set -o pipefail
+          
+          # 运行脚本，同时将输出显示在控制台并保存到 validation_log.txt
+          uv run python scripts/validate_submission.py 2>&1 | tee validation_log.txt
+
+      # 新增步骤: 验证失败时评论 (Comment on Failure)
+      - name: Comment on Validation Failure
+        if: failure() && steps.validate.outcome == 'failure'  # 仅在 Validate 步骤失败时运行
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            
+            // 读取验证脚本的日志文件
+            let logContent = '';
+            try {
+              logContent = fs.readFileSync('validation_log.txt', 'utf8');
+            } catch (e) {
+              logContent = 'Failed to read validation log.';
+            }
+
+            // 截取最后 2000 个字符以防日志过长，或者保留关键错误信息
+            // 这里我们直接放全部，通常验证错误信息不会太长
+            
+            const author = context.payload.pull_request.user.login;
+            const body = `
+            ### ❌ Submission Validation Failed
+            
+            Hi @${author}, thank you for your contribution! 
+            
+            However, our automated validation script detected some issues with your submission. Please check the error log below and update your PR template or files accordingly.
+            
+            <details>
+            <summary><b>Click to see error details</b></summary>
+            
+            \`\`\`text
+            ${logContent}
+            \`\`\`
+            
+            </details>
+            
+            Once you fix these issues and push the changes, the validation will run again automatically.
+            `;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
 
       # 步骤 2: 处理图片 (Process Figures)
       - name: Update Figures and Templates
