@@ -12,8 +12,15 @@ import threading
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 
+
+# 统一根目录（无论打包还是源码运行）
+if getattr(sys, 'frozen', False):
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR =os.path.join(os.path.dirname(os.path.abspath(__file__)), '../') 
+
 # 添加项目根目录到Python路径
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../'))
+sys.path.insert(0, BASE_DIR)
 
 from src.core.config_loader import get_config_instance
 from src.core.database_model import Paper, is_same_identity
@@ -55,8 +62,9 @@ class PaperSubmissionGUI:
         self.PLACEHOLDER = "to be filled in"
         
         # 更新文件路径
-        self.update_json_path = self.settings['paths']['update_json']
-        self.update_excel_path = self.settings['paths']['update_excel']
+        # 路径全部基于 BASE_DIR
+        self.update_json_path = os.path.join(BASE_DIR, self.settings['paths']['update_json'])
+        self.update_excel_path = os.path.join(BASE_DIR, self.settings['paths']['update_excel'])
         # 其他配置
         self.conflict_marker = self.settings['database']['conflict_marker']
 
@@ -1073,7 +1081,7 @@ class PaperSubmissionGUI:
             defaultextension='.json',
             filetypes=[("JSON文件", "*.json"), ("所有文件", "*.*")],
             initialfile='submit_template.json',
-            initialdir=os.getcwd()
+            initialdir=BASE_DIR
         )
 
         if not target_path:
@@ -1148,7 +1156,7 @@ class PaperSubmissionGUI:
                     raise Exception("Git未安装！")
                 
                 result = subprocess.run(["git", "branch", "--show-current"], 
-                                       capture_output=True, text=True, cwd=os.getcwd())
+                                       capture_output=True, text=True, cwd=BASE_DIR)
                 current_branch = result.stdout.strip()
                 original_branch = current_branch
                 created_new_branch = False
@@ -1157,7 +1165,7 @@ class PaperSubmissionGUI:
                     branch_name = f"paper-submission-{int(time.time())}"
                     try:
                         subprocess.run(["git", "checkout", "-b", branch_name], 
-                                      check=True, capture_output=True, text=True, cwd=os.getcwd())
+                                      check=True, capture_output=True, text=True, cwd=BASE_DIR)
                         created_new_branch = True
                         self.root.after(0, lambda: self.update_status(f"已创建并切换到新分支: {branch_name}"))
                     except subprocess.CalledProcessError as e:
@@ -1169,22 +1177,22 @@ class PaperSubmissionGUI:
                     if os.path.exists(self.update_json_path):
                         have_update_files = True
                         subprocess.run(["git", "add", self.update_json_path], 
-                                     check=True, capture_output=True, cwd=os.getcwd())
+                                     check=True, capture_output=True, cwd=BASE_DIR)
                     if os.path.exists(self.update_excel_path):
                         have_update_files = True
                         subprocess.run(["git", "add", self.update_excel_path], 
-                                     check=True, capture_output=True, cwd=os.getcwd())
+                                     check=True, capture_output=True, cwd=BASE_DIR)
                     if not have_update_files:
                         raise Exception("没有找到可提交的更新文件！本次PR不会有任何论文更新") 
                     subprocess.run(["git", "commit", "-m", f"Add {len(self.papers)} papers via GUI"], 
-                                   check=True, capture_output=True, cwd=os.getcwd())
+                                   check=True, capture_output=True, cwd=BASE_DIR)
                     self.root.after(0, lambda: self.update_status("已提交更改到本地仓库"))
                 except subprocess.CalledProcessError as e:
                     raise Exception(f"提交更改失败: {e.stderr}")
                 
                 try:
                     subprocess.run(["git", "push", "origin", branch_name], 
-                                 check=True, capture_output=True, text=True, cwd=os.getcwd())
+                                 check=True, capture_output=True, text=True, cwd=BASE_DIR)
                     self.root.after(0, lambda: self.update_status(f"已推送到远程分支: {branch_name}"))
                 except subprocess.CalledProcessError as e:
                     raise Exception(f"推送失败: {e.stderr}")
@@ -1202,7 +1210,7 @@ class PaperSubmissionGUI:
                         result = subprocess.run(
                             ["gh", "pr", "create", "--base", "main", "--head", branch_name,
                              "--title", pr_title, "--body", pr_body],
-                            capture_output=True, text=True, cwd=os.getcwd()
+                            capture_output=True, text=True, cwd=BASE_DIR
                         )
                         if result.returncode == 0:
                             pr_url = result.stdout.strip()
@@ -1219,7 +1227,7 @@ class PaperSubmissionGUI:
                         self.root.after(0, lambda: self.show_pr_result(""))
 
                 if created_new_branch:
-                    subprocess.run(["git", "checkout", original_branch], check=True, capture_output=True, text=True, cwd=os.getcwd())
+                    subprocess.run(["git", "checkout", original_branch], check=True, capture_output=True, text=True, cwd=BASE_DIR)
 
             except Exception as e:
                 self.root.after(0, lambda: messagebox.showerror("提交失败", f"{str(e)}"))
