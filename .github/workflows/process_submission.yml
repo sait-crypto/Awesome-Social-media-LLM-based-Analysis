@@ -186,6 +186,10 @@ jobs:
           git fetch origin main
           git checkout main
 
+          # 动态获取 Core Excel 的路径
+          CORE_EXCEL_PATH=$(uv run python -c "from src.core.config_loader import get_config_instance; print(get_config_instance().settings['paths']['core_excel'])")
+          echo "Adding Core Excel: $CORE_EXCEL_PATH"
+          
           # 用 PR 分支的最新文件覆盖 main
           git checkout ${{ github.event.pull_request.head.ref }} -- "$CORE_EXCEL_PATH" README.md figures/
 
