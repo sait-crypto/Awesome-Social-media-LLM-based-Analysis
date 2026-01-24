@@ -148,6 +148,7 @@ jobs:
           # 使用 -f 强制添加，防止 .gitignore 干扰
           git add -f "$CORE_EXCEL_PATH"
           git add README.md
+          git add submit_template.xlsx submit_template.json
           
           # 4. 添加图片
           # 先添加所有 figures 变动
@@ -178,6 +179,9 @@ jobs:
         env:
           CORE_EXCEL_PATH: ${{ env.CORE_EXCEL_PATH }}
         run: |
+          # 丢弃所有未提交的更改，避免 checkout main 失败
+          git reset --hard
+          
           # 拉取 main 分支到本地
           git fetch origin main
           git checkout main
@@ -185,7 +189,7 @@ jobs:
           # 用 PR 分支的最新文件覆盖 main
           git checkout ${{ github.event.pull_request.head.ref }} -- "$CORE_EXCEL_PATH" README.md figures/
 
-          # 添加并提交
+          # 添加并提交三个文件（夹）的更改
           git add "$CORE_EXCEL_PATH" README.md figures/
           git commit -m "Auto-overwrite: Sync selected files from PR branch to main [skip ci]" || echo "Nothing to commit"
 
