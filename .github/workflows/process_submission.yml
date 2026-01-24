@@ -197,7 +197,7 @@ jobs:
 
           # 添加并提交三个文件（夹）的更改
           git add "$CORE_EXCEL_PATH" README.md figures/
-          git commit -m ": Contribution by @$PR_USER: branches auto-merged from PR branch to main [skip ci]" || echo "Nothing to commit"
+          git commit -m "@$PR_USER Thank for Contribution: auto-merged from PR branch to main [skip ci]" || echo "Nothing to commit"
 
           # 推送到 main 分支
           git push origin main
