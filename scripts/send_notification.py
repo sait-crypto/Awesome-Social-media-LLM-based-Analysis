@@ -35,18 +35,26 @@ def send_email():
     """
 
     message = MIMEText(body, 'plain', 'utf-8')
-    message['From'] = Header(f"Awesome Bot <{sender}>", 'utf-8')
-    message['To'] =  Header(receiver, 'utf-8')
-    message['Subject'] = Header(subject, 'utf-8')
+    message['From'] = f"Awesome Bot <{sender}>"
+    message['To'] = receiver
+    message['Subject'] = subject
 
     try:
         if smtp_port == '465':
+            if smtp_server is None or smtp_port is None:
+                raise ValueError("SMTP服务器和端口不能为空")
             server = smtplib.SMTP_SSL(smtp_server, int(smtp_port))
         else:
+            if smtp_server is None or smtp_port is None:
+                raise ValueError("SMTP服务器和端口不能为空")
             server = smtplib.SMTP(smtp_server, int(smtp_port))
             server.starttls()
             
+        if sender is None or password is None:
+            raise ValueError("发件人和密码不能为空")
         server.login(sender, password)
+        if sender is None or receiver is None:
+            raise ValueError("发件人和收件人不能为空")
         server.sendmail(sender, [receiver], message.as_string())
         server.quit()
         print("Notification email sent successfully.")

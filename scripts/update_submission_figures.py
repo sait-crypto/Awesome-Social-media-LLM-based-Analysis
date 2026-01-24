@@ -117,7 +117,7 @@ def process_figures():
                     
                     # 如果有更新，写回该行
                     if row_updated:
-                        df.at[idx, target_col] = ";".join(new_paths)
+                        df.at[loc, target_col] = ";".join(new_paths)
             
             if updated:
                 # 保持表头样式（尝试保留）

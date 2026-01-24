@@ -416,7 +416,7 @@ class PaperSubmissionGUI:
                 sv = tk.StringVar()
                 sv.trace_add("write", lambda *args, v=variable, w=entry: self._on_field_change(v, w))
                 entry.config(textvariable=sv)
-                entry.text_var = sv 
+                entry.textvariable = sv  # tkinter Entry 推荐使用 textvariable
                 
                 entry.bind("<Enter>", lambda e: self._bind_global_scroll(self.form_canvas.yview_scroll))
 
@@ -619,7 +619,8 @@ class PaperSubmissionGUI:
             label.pack()
         def leave(event):
             if getattr(self, 'tooltip', None):
-                self.tooltip.destroy()
+                if self.tooltip is not None:
+                    self.tooltip.destroy()
                 self.tooltip = None
         widget.bind("<Enter>", enter)
         widget.bind("<Leave>", leave)
