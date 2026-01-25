@@ -50,6 +50,11 @@ class AIGenerator:
         api_key_path = self.settings['ai'].get('deepseek_api_key_path', '')
         if api_key_path and os.path.exists(api_key_path):
             try:
+                # 保证api_key_path为项目根目录下的相对路径时，自动锚定到project_root
+                from pathlib import Path
+                config = get_config_instance()
+                if not Path(api_key_path).is_absolute():
+                    api_key_path = str((config.project_root / api_key_path).resolve())
                 with open(api_key_path, 'r', encoding='utf-8') as f:
                     api_key = f.read().strip()
                     return api_key

@@ -22,7 +22,7 @@
 ```bash
 python submit.py
 ```
-或者点击exe文件运行（有的话）
+或者运行`SurveyPaperSubmitGUI.exe`文件使用打包版本（有的话）
 
 GUI 推荐流程：
 1. 启动后点击“`➕ 添加论文`”，按规范填写表单中各字段。
@@ -55,11 +55,12 @@ GUI 推荐流程：
 >确保已安装`git`，然后终端命令行中复制执行即可
 
 ```bash
-git checkout -b submit/your-name-<short-desc>
+git checkout -b submit-branch
+git add -A
 # 将更新文件复制或生成到仓库根目录
-git add submit_template.json submit_template.xlsx figures
+#git add submit_template.json submit_template.xlsx figures
 git commit -m "Add N new papers via submit_template"
-git push origin submit/your-name-<short-desc>
+git push origin submit-branch
 # 打开 GitHub，创建 Pull Request，base: main, compare: your branch
 ```
 

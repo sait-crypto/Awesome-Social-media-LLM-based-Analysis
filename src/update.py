@@ -9,8 +9,6 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 from dataclasses import asdict
 
-# 添加项目根目录到Python路径
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../'))
 
 from src.convert import ReadmeGenerator
 from src.core.config_loader import get_config_instance

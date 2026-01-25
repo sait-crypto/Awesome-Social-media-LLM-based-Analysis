@@ -114,7 +114,7 @@ class ConfigLoader:
                 'my_update_excel': str((root_dir / 'my_submit.xlsx').resolve()),
                 'my_update_json': str((root_dir / 'my_submit.json').resolve()),
                 'extra_update_file': '', # 默认为空
-                'backup_dir': str((root_dir / 'master' / 'backups').resolve()),
+                'backup_dir': str((root_dir /  'backups').resolve()),
             },
             'ai': {
                 'enable_ai_generation': 'true',

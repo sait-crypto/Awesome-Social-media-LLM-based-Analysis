@@ -8,7 +8,6 @@ project/
 │   ├── config_default.ini
 │   ├── config.ini
 │   └── tag_config.py
-├── dist/
 ├── docs/
 ├── figures/
 ├── scripts/
@@ -23,6 +22,7 @@ project/
 │   │   └── update_file_utils.py
 │   ├── ai_generator.py
 │   ├── convert.py
+│   ├── process_zotero_meta.py
 │   ├── submit_gui.py
 │   ├── update.py
 │   └── utils.py
@@ -31,5 +31,5 @@ project/
 ├── pyproject.toml
 ├── README.md
 ├── submit_template.json
-├── submit_template.xlsx
-└── submit.py
+├── submit.py
+└── SurveyPaperSubmitGUI.exe

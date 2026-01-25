@@ -549,24 +549,6 @@ def normalize_figure_path(path: str, figure_dir: str) -> str:
 
 
 
-def figure_exists_in_repo(figure_path: str, project_root: str = None) -> bool:
-    """
-    检查图片是否存在于仓库中
-    - figure_path: 规范化后的图片路径
-    - project_root: 项目根目录，如果为None则使用当前工作目录
-    """
-    if not figure_path:
-        return False
-    
-    if project_root is None:
-        project_root = os.getcwd()
-    
-    # 构建完整路径
-    full_path = os.path.join(project_root, figure_path)
-    
-    # 检查文件是否存在
-    return os.path.isfile(full_path)
-
 
 def backup_file(filepath: str, backup_dir: str) -> Optional[str]:
     """

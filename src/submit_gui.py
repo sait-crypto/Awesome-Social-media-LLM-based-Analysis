@@ -12,30 +12,16 @@ import threading
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 
-
-# 统一根目录（无论打包还是源码运行）
-if getattr(sys, 'frozen', False):
-    BASE_DIR = os.path.dirname(sys.executable)
-else:
-    BASE_DIR =os.path.join(os.path.dirname(os.path.abspath(__file__)), '../') 
-
+# 统一根目录锚定到 config_loader.py 的 project_root
+from src.core.config_loader import get_config_instance
+BASE_DIR = str(get_config_instance().project_root)
 # 添加项目根目录到Python路径
 sys.path.insert(0, BASE_DIR)
 
-from src.core.config_loader import get_config_instance
 from src.core.database_model import Paper, is_same_identity
 from src.core.update_file_utils import get_update_file_utils
-from src.utils import validate_figure, normalize_figure_path
 
-from src.utils import (
-    get_current_timestamp, 
-    validate_url, 
-    validate_doi, 
-    clean_doi,
-    validate_figure,
-    normalize_figure_path,
-)
-
+from src.utils import clean_doi
 
 class PaperSubmissionGUI:
     """论文提交图形界面"""
@@ -62,7 +48,7 @@ class PaperSubmissionGUI:
         self.PLACEHOLDER = "to be filled in"
         
         # 更新文件路径
-        # 路径全部基于 BASE_DIR
+        # 路径全部基于项目根目录（project_root）
         self.update_json_path = os.path.join(BASE_DIR, self.settings['paths']['update_json'])
         self.update_excel_path = os.path.join(BASE_DIR, self.settings['paths']['update_excel'])
         # 其他配置

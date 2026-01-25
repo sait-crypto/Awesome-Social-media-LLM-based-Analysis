@@ -13,6 +13,12 @@ pip install pyinstaller
 
 ```bash
 pyinstaller --noconfirm --onefile --windowed --name SurveyPaperSubmitGUI src/submit_gui.py
+# 打包后，准备分发目录（假设dist为输出目录，当前目录为项目根）
+# 复制必要文件到dist目录
+copy submit_template.xlsx dist\
+copy submit_template.json dist\
+xcopy config\config.ini dist\config\ /E /I /Y
+mkdir dist\figures
 ```
 
 说明：

@@ -518,7 +518,10 @@ class ReadmeGenerator:
     def update_readme_file(self, readme_path: str = None) -> bool:
         """更新README文件"""
         if readme_path is None:
-            readme_path = os.path.join(os.path.dirname(__file__), '../README.md')
+            # 使用 config_loader.py 的 project_root 属性锚定项目根目录
+            from src.core.config_loader import get_config_instance
+            project_root = str(get_config_instance().project_root)
+            readme_path = os.path.join(project_root, 'README.md')
         
         if not os.path.exists(readme_path):
             print(f"README文件不存在: {readme_path}")
