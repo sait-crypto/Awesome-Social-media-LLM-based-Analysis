@@ -12,14 +12,16 @@ import threading
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 # 统一根目录锚定到 config_loader.py 的 project_root
 from src.core.config_loader import get_config_instance
 BASE_DIR = str(get_config_instance().project_root)
-# 添加项目根目录到Python路径
-sys.path.insert(0, BASE_DIR)
 
+from src.core.config_loader import get_config_instance
 from src.core.database_model import Paper, is_same_identity
 from src.core.update_file_utils import get_update_file_utils
+from src.process_zotero_meta import ZoteroProcessor
 
 from src.utils import clean_doi
 
@@ -38,6 +40,7 @@ class PaperSubmissionGUI:
         self.config = get_config_instance()
         self.settings = get_config_instance().settings
         self.update_utils = get_update_file_utils()
+        self.zotero_processor = ZoteroProcessor()
         
         
         # 论文列表
@@ -237,9 +240,22 @@ class PaperSubmissionGUI:
         # 整个表单的容器（包括标题和滚动区域）
         self.form_container = ttk.Frame(parent)
         
+        # 表单标题栏容器
+        title_frame = ttk.Frame(self.form_container)
+        title_frame.grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
+        
         # 表单标题
-        form_title = ttk.Label(self.form_container, text="📝 论文详情", font=("Arial", 12, "bold"))
-        form_title.grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
+        form_title = ttk.Label(title_frame, text="📝 论文详情", font=("Arial", 12, "bold"))
+        form_title.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Zotero填入按钮
+        fill_zotero_btn = ttk.Button(
+            title_frame,
+            text="📋 从Zotero Meta填充表单",
+            command=self.fill_from_zotero_meta,
+            width=75
+        )
+        fill_zotero_btn.pack(side=tk.LEFT, padx=(52, 0))
         
         # 创建Canvas和滚动条
         self.form_canvas = tk.Canvas(self.form_container)
@@ -623,13 +639,22 @@ class PaperSubmissionGUI:
         buttons_frame = ttk.Frame(parent)
         buttons_frame.grid(row=2, column=0, columnspan=2, pady=(20, 10))
         
+        # Zotero新建按钮 (最左侧)
+        add_zotero_btn = ttk.Button(
+            buttons_frame,
+            text="📑 从Zotero新建论文",
+            command=self.add_from_zotero_meta,
+            width=20
+        )
+        add_zotero_btn.grid(row=0, column=0, padx=5)
+
         save_all_button = ttk.Button(
             buttons_frame,
             text="📤 保存所有论文到文件",
             command=self.save_all_papers,
             width=20
         )
-        save_all_button.grid(row=0, column=0, padx=5)
+        save_all_button.grid(row=0, column=1, padx=5)
         
         if getattr(self, 'pr_enabled', True):
             submit_button = ttk.Button(
@@ -638,7 +663,7 @@ class PaperSubmissionGUI:
                 command=self.submit_pr,
                 width=20
             )
-            submit_button.grid(row=0, column=1, padx=5)
+            submit_button.grid(row=0, column=2, padx=5)
         
         load_template_button = ttk.Button(
             buttons_frame,
@@ -646,7 +671,7 @@ class PaperSubmissionGUI:
             command=self.load_template,
             width=20
         )
-        load_template_button.grid(row=0, column=2, padx=5)
+        load_template_button.grid(row=0, column=3, padx=5)
     
     def setup_status_bar(self, parent):
         self.status_var = tk.StringVar()
@@ -1281,6 +1306,171 @@ class PaperSubmissionGUI:
                 if messagebox.askyesno("二次确认", "二次确认！是否要保存当前所有论文后再关闭程序？\n\n⚠️ 如果否，当前所有内容会丢失"):
                     if self.save_all_papers()==False: return
         self.root.destroy()
+
+    # ================= Zotero 交互相关 =================
+    
+    def _show_zotero_input_dialog(self, title: str) -> Optional[str]:
+        """弹出Zotero JSON输入对话框"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title(title)
+        dialog.geometry("600x400")
+        
+        # 布局
+        dialog.columnconfigure(0, weight=1)
+        dialog.rowconfigure(1, weight=1)
+        
+        lbl = ttk.Label(dialog, text="请粘贴Zotero导出的元数据JSON (支持单个对象或列表):", padding=10)
+        lbl.grid(row=0, column=0, sticky="w")
+        
+        # 帮助按钮
+        def show_help():
+            msg = (
+		        "How to Obtain Zotero Meta JSON?/如何获取Zotero Meta JSON?\n\n"
+                "1. It is recommended to use the specially developed Zotero plugin 'One-Click Copy Metadata'\n"
+                "You can get One-Click Copy Metadata.xpi from the tools folder of the project).\n"
+                "The download link can also be found in the README on the GitHub homepage.\n"
+                "2. After installation, right-click the item -> ==Copy Meta to Json Format==. The required metadata will be copied to the clipboard\n\n"
+                "Note: You can also manually export CSL JSON format from Zotero. (Not recommended due to incomplete data)\n\n"
+                "Supports single item {...} or item list [...]\n\n"
+                "1. 推荐使用特意开发的zotero插件'One-Click Copy Metadata'\n"
+		        "可从项目的tools文件夹拿到One-Click Copy Metadata.xpi）。\n"
+		        "也可在github主页面的readme中找到下载链接。\n"
+                "2. 安装后右键点击条目 -> ==Copy Meta to Json Format==。就会将所需meta数据拷贝到剪贴板\n\n"
+                "注：也可以手动从Zotero导出为CSL JSON格式。（因数据不完全，不推荐）\n\n"
+                "支持单个条目 {...} 或 条目列表 [...]"
+            )
+            messagebox.showinfo("获取帮助", msg, parent=dialog)
+            
+        help_btn = ttk.Button(dialog, text="❓", width=3, command=show_help)
+        help_btn.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=5)
+
+        text_area = scrolledtext.ScrolledText(dialog, wrap=tk.WORD, height=15)
+        text_area.grid(row=1, column=0, sticky="nsew", padx=10, pady=5)
+        
+        btn_frame = ttk.Frame(dialog)
+        btn_frame.grid(row=2, column=0, pady=10)
+        
+        result_container = {"data": None}
+        
+        def on_confirm():
+            content = text_area.get("1.0", tk.END).strip()
+            if not content:
+                messagebox.showwarning("提示", "输入内容为空", parent=dialog)
+                return
+            result_container["data"] = content
+            dialog.destroy()
+            
+        def on_cancel():
+            dialog.destroy()
+            
+        confirm_btn = ttk.Button(btn_frame, text="✅ 确定", command=on_confirm)
+        confirm_btn.pack(side=tk.LEFT, padx=10)
+        
+        cancel_btn = ttk.Button(btn_frame, text="❌ 取消", command=on_cancel)
+        cancel_btn.pack(side=tk.LEFT, padx=10)
+        
+        dialog.transient(self.root)
+        dialog.grab_set()
+        self.root.wait_window(dialog)
+        
+        return result_container["data"]
+
+    def add_from_zotero_meta(self):
+        """从Zotero Meta批量新建论文"""
+        json_str = self._show_zotero_input_dialog("从Zotero Meta新建论文")
+        if not json_str:
+            return
+            
+        new_papers = self.zotero_processor.process_meta_data(json_str)
+        if not new_papers:
+            messagebox.showwarning("提示", "未解析到有效的Zotero数据")
+            return
+            
+        self.papers.extend(new_papers)
+        self.update_paper_list()
+        
+        # 选中最后一个新增的
+        new_index = len(self.papers) - 1
+        children = self.paper_tree.get_children()
+        
+        self.current_paper_index = new_index
+        self._suppress_select_event = True
+        if new_index < len(children):
+            self.paper_tree.selection_set(children[new_index])
+            self.paper_tree.see(children[new_index])
+        self._suppress_select_event = False
+        
+        self.load_paper_to_form(self.papers[new_index])
+        self.show_form()
+        self._validate_all_fields_visuals()
+        
+        messagebox.showinfo("成功", f"已添加 {len(new_papers)} 篇论文")
+        self.update_status(f"已批量添加 {len(new_papers)} 篇论文")
+
+    def fill_from_zotero_meta(self):
+        """填充当前表单"""
+        if self.current_paper_index < 0:
+            messagebox.showwarning("提示", "请先在左侧选择要填充的论文条目")
+            return
+            
+        json_str = self._show_zotero_input_dialog("填充当前表单")
+        if not json_str:
+            return
+
+        new_papers = self.zotero_processor.process_meta_data(json_str)
+        if not new_papers:
+            messagebox.showwarning("提示", "未解析到有效的Zotero数据")
+            return
+            
+        source_paper = new_papers[0]
+        target_paper = self.papers[self.current_paper_index]
+        
+        conflicts = []
+        fields_to_update = []
+        
+        # 跳过系统字段
+        system_fields = [t["variable"] for t in get_config_instance().get_system_tags()]
+        for field in source_paper.__dataclass_fields__:
+            if field in ['invalid_fields', 'is_placeholder'] or field in system_fields:
+                continue
+            val = getattr(source_paper, field)
+            if val:
+                target_val = getattr(target_paper, field)
+                fields_to_update.append((field, val))
+                # 只要 target_val 非空且非 PLACEHOLDER，才算冲突
+                if target_val and str(target_val).strip() and str(target_val).strip() != self.PLACEHOLDER:
+                    conflicts.append(field)
+        
+        if not fields_to_update:
+             messagebox.showinfo("提示", "Zotero数据中没有有效内容可填充")
+             return
+
+        overwrite_mode = True # 默认覆盖
+        
+        if conflicts:
+            msg = f"检测到 {len(conflicts)} 个字段已有内容（如 {conflicts[0]} 等）。\n\n是否覆盖已有内容？\n\n是(Yes): 覆盖所有字段\n否(No): 仅填充空白字段 (保留已有内容)\n取消(Cancel): 取消操作"
+            choice = messagebox.askyesnocancel("覆盖确认", msg)
+            
+            if choice is None: # Cancel
+                return
+            elif choice is False: # No
+                overwrite_mode = False
+            # Yes -> overwrite_mode = True
+            
+        # 执行更新
+        updated_count = 0
+        for field, val in fields_to_update:
+            target_val = getattr(target_paper, field)
+            if overwrite_mode or (not target_val or not str(target_val).strip()):
+                 setattr(target_paper, field, val)
+                 updated_count += 1
+                
+        # 刷新UI
+        self.load_paper_to_form(target_paper)
+        self._validate_all_fields_visuals()
+        self._refresh_list_item(self.current_paper_index)
+        
+        self.update_status(f"已从Zotero数据更新 {updated_count} 个字段")
 
 
 def main():

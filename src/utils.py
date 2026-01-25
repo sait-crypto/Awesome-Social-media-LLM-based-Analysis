@@ -1,4 +1,3 @@
-
 """
 通用工具函数
 """
@@ -213,12 +212,13 @@ def validate_date(date_str: Any) -> Tuple[bool, str]:
     if not s_val:
         return (True, "")
 
+    # 捕获原始值，防止后续split空格时截断非标准日期（如 "Oct 27, 2025"）
+    original_val = s_val
+
     # 2. 去除时间部分
     if ' ' in s_val:
         s_val = s_val.split(' ')[0]
     
-    original_val = s_val
-
     try:
         final_str = ""
         
@@ -548,6 +548,25 @@ def normalize_figure_path(path: str, figure_dir: str) -> str:
     return f"{fig_dir_norm}/{os.path.basename(path_s)}"
 
 
+
+def figure_exists_in_repo(figure_path: str, project_root: str = None) -> bool:
+    """
+    检查图片是否存在于仓库中
+    - figure_path: 规范化后的图片路径
+    - project_root: 项目根目录，如果为None则使用当前工作目录
+    """
+    if not figure_path:
+        return False
+    
+    if project_root is None:
+        from src.core.config_loader import get_config_instance
+        project_root = str(get_config_instance().project_root)
+    
+    # 构建完整路径
+    full_path = os.path.join(project_root, figure_path)
+    
+    # 检查文件是否存在
+    return os.path.isfile(full_path)
 
 
 def backup_file(filepath: str, backup_dir: str) -> Optional[str]:
