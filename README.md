@@ -5,7 +5,7 @@
 > If you want to add your paper or update details like conference info or code URLs, please submit a pull request. You can generate the necessary markdown for each paper by filling out `generate_item.py` and running `python generate_item.py`. We greatly appreciate your contributions. Alternatively, you can email me ([Gmail](fscnkucs@gmail.com)) the links to your paper and code, and I will add your paper to the list as soon as possible.
 
 #### **technical and manual documentation guide**
-[contributor_manual](./docs/contributor_manual_chs.md) 
+[contributor_manual](./contributor_manual_chs.md) 
 <br>[plugin_manual](./tools/Manual-One-Click-Copy-Metadata.md)
 <br>[PROJECT_README](./PROJECT_README.md)
 >[Download the recommended Zotero plugins](https://github.com/sait-crypto/Awesome-Social-media-LLM-based-Analysis/raw/refs/heads/main/tools/One-Click%20Copy%20Metadata.xpi):
