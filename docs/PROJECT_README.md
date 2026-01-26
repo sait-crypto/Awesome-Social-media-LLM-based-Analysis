@@ -1,4 +1,4 @@
-[Document Homepage](./README.md)
+[Document Homepage](./../README.md)
 # Project Structure
 ```
 project/

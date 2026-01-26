@@ -1,4 +1,4 @@
-[Document Homepage](./README.md)
+[Document Homepage](./../README.md)
 # 贡献者使用手册
 
 本手册面向需要向仓库提交论文的贡献者，介绍两种方便的论文提交方式，根据您的使用习惯**二选一**即可：

@@ -4,10 +4,11 @@
 >
 > If you want to add your paper or update details like conference info or code URLs, please submit a pull request. You can generate the necessary markdown for each paper by filling out `generate_item.py` and running `python generate_item.py`. We greatly appreciate your contributions. Alternatively, you can email me ([Gmail](fscnkucs@gmail.com)) the links to your paper and code, and I will add your paper to the list as soon as possible.
 
-#### **technical and manual documentation guide**
-[contributor_manual](./contributor_manual_chs.md) 
-<br>[plugin_manual](./tools/Manual-One-Click-Copy-Metadata.md)
-<br>[PROJECT_README](./PROJECT_README.md)
+### **technical and manual documentation guide**
+[contributor_manual](./docs/contributor_manual_chs.md) 
+<br>[plugin_manual](./docs/plugin_manual.md)
+<br>[PROJECT_README](./docs/PROJECT_README.md)
+<br>[maintenance_manual](./docs/maintenance_manual.md)
 >[Download the recommended Zotero plugins](https://github.com/sait-crypto/Awesome-Social-media-LLM-based-Analysis/raw/refs/heads/main/tools/One-Click%20Copy%20Metadata.xpi):
 <br>Developed specifically for this project, it can work with the GUI interface to quickly fill in paper information.Refer to the technical documentation for details.
 <br>(chs: 特地为该项目开发，可配合gui界面快速填写论文信息，详情见技术文档)
@@ -21,15 +22,10 @@
 >For complete paper information, please refer to the paper_database.xlsx file.
 ><br>完整论文信息可以查看paper_database.xlsx文件
 
-**Key Points for Table Usage**
+### Key Points for Table Usage
 - <b>Paper Link</b>: Please click the paper title
 - <b>Paper Project Link</b>: Please click the GitHub icon or Project icon above the paper title
 - <b>Summary</b> and <b>Notes</b> can be expanded by clicking
-
-**表格使用要点**
-- <b>论文链接</b>:请点击论文标题
-- <b>论文项目链接</b>:请点击论文标题上方的github标或project标
-- <b>Summary</b>和<b>Notes</b>可以点击展开
 
 ## Full paper list (16 papers)
 ### Quick Links
