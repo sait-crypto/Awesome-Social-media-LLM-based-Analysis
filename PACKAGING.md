@@ -1,3 +1,4 @@
+[Document Homepage](./README.md)
 如何将 `submit_gui.py` 打包为可执行程序（不包含 PR 功能）
 
 1. 环境准备
