@@ -253,7 +253,7 @@ class PaperSubmissionGUI:
             title_frame,
             text="📋 从Zotero Meta填充表单",
             command=self.fill_from_zotero_meta,
-            width=75
+            width=200#暂时用足够宽的宽度模拟伸缩
         )
         fill_zotero_btn.pack(side=tk.LEFT, padx=(52, 0))
         

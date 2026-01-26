@@ -35,7 +35,10 @@ GUI 推荐流程：
    - 通过邮件或其他方式将**更新文件**和**引用图片**发给管理者[lixiajie2182712226@gmail.com](mailto:lixiajie2182712226@gmail.com),
    - 手动提交PR
 
->GUI 的优点：界面易理解，自动规范化字段、验证并提示错误，全自动提交PR，保证不会因为格式问题导致的 PR 被自动拒绝，降低管理者工作量。
+>👍强烈推荐使用特意开发的`One-Click Copy Metadata`插件，从Zotero一键复制论文元数据并填充表单字段，极大简化填写过程。
+><br>该插件可以从项目tool文件夹中获取（One-Click Copy Metadata.xpi），或从[GitHub仓库](https://github.com/lxj218218/Awesome-Social-media-LLM-based-Analysis/tree/main/tool)下载。
+
+>使用GUI 的优点：界面易理解，自动规范化字段、验证并提示错误，全自动提交PR，保证不会因为格式问题导致的 PR 被自动拒绝，降低管理者工作量。
 
 ---
 
@@ -57,11 +60,9 @@ GUI 推荐流程：
 ```bash
 git checkout -b submit-branch
 git add -A
-# 将更新文件复制或生成到仓库根目录
-#git add submit_template.json submit_template.xlsx figures
 git commit -m "Add N new papers via submit_template"
 git push origin submit-branch
-# 打开 GitHub，创建 Pull Request，base: main, compare: your branch
+# 然后打开 GitHub，创建 Pull Request
 ```
 
 如果你使用 GUI 的自动提交 PR 功能（仅在开发者允许时启用）：

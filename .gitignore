@@ -29,6 +29,7 @@ wheels/
 # 数据库和备份
 my_submit.xlsx
 my_submit.json
+**/*my_submit*
 
 # 配置文件中的敏感信息
 

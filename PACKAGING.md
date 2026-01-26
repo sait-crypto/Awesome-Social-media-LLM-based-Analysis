@@ -12,7 +12,7 @@ pip install pyinstaller
 - 在仓库根目录下运行：
 
 ```bash
-pyinstaller --noconfirm --onefile --windowed --name SurveyPaperSubmitGUI src/submit_gui.py
+pyinstaller --noconfirm --onefile --windowed --name SurveyPaperSubmitGUI src/submit_gui.py --add-data "config/config.ini;config"
 # 打包后，准备分发目录（假设dist为输出目录，当前目录为项目根）
 # 复制必要文件到dist目录
 copy submit_template.xlsx dist\
