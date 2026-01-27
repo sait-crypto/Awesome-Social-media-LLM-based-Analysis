@@ -34,6 +34,7 @@ project/
 ├── pyproject.toml
 ├── README.md
 ├── submit_template.json
+├── submit_template.xlsx
 ├── submit.py
 └── SurveyPaperSubmitGUI.exe
 ```
