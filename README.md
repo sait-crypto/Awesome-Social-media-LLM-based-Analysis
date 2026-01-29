@@ -44,7 +44,7 @@
   - [Understanding](#-Understanding-6-papers) (6 papers)
     - [Event Extraction](#Event-Extraction-6-papers) (6 papers)
     - [Topic Modeling](#Topic-Modeling-0-papers) (0 papers)
-    - [Social Psychological Phenomena Analysis](#Social-Psychological-Phenomena-Analysis-0-papers) (0 papers)
+    - [Social Psychological Phenomena Analysis](#Social-Psychological-Phenomena-Analysis-1-papers) (1 papers)
     - [Social Popularity Prediction](#Social-Popularity-Prediction-0-papers) (0 papers)
     - [User Identity Understanding](#User-Identity-Understanding-0-papers) (0 papers)
     - [User Profiling](#User-Profiling-0-papers) (0 papers)
@@ -68,7 +68,7 @@
     - [Macrosocial Phenomena Analysis](#Macrosocial-Phenomena-Analysis-1-papers) (1 papers)
     - [Frontier Applications](#Frontier-Applications-0-papers) (0 papers)
   - [Social Media Security](#-Social-Media-Security-0-papers) (0 papers)
-  - [Other](#-Other-0-papers) (0 papers)
+  - [Other](#-Other-1-papers) (1 papers)
 
 
 ### | Base Techniques (2 papers)
