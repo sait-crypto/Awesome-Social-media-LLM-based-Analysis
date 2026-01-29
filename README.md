@@ -27,7 +27,7 @@
 - <b>Summary</b> and <b>Notes</b> can be expanded by clicking
 >For complete paper information, please refer to the paper_database.xlsx file.
 ><br>完整论文信息可以查看paper_database.xlsx文件
-## Full paper list (27 papers)
+## Full paper list (44 papers)
 ### Quick Links
 
   - [Uncategorized](#-Uncategorized-0-papers) (0 papers)
