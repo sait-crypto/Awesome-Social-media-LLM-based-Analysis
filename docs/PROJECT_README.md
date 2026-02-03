@@ -27,6 +27,7 @@ project/
 │   ├── convert.py
 │   ├── process_zotero_meta.py
 │   ├── submit_gui.py
+│   ├── submit_logic.py 
 │   ├── update.py
 │   └── utils.py
 ├── tests/
