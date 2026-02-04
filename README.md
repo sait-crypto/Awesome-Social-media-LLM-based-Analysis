@@ -1,5 +1,5 @@
 # Awesome Social Media Analysis with LLM Method(excel vertion)
->This version is no longer maintained.A more concise and maintainable version is available at [csv version](https://github.com/sait-crypto/Awesome-LLM-based-Social-media-Analysis-System/branches)
+>This version is no longer maintained. A more concise and maintainable version is available at [csv version](https://github.com/sait-crypto/Awesome-LLM-based-Social-media-Analysis-System/branches)
 
 > **Contributions**
 >
