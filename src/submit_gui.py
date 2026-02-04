@@ -1086,11 +1086,16 @@ class PaperSubmissionGUI:
         win.geometry("600x600")
         self._set_window_ontop(win)
         
-        tree = ttk.Treeview(win, columns=("ID", "Desc"), show="tree headings")
+        # 创建主框架
+        main_frame = ttk.Frame(win)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # 创建树视图
+        tree = ttk.Treeview(main_frame, columns=("ID", "Desc"), show="tree headings")
         tree.heading("#0", text="Name")
         tree.heading("ID", text="Unique Name")
         tree.heading("Desc", text="Description")
-        tree.pack(fill=tk.BOTH, expand=True)
+        tree.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         cats = self.config.get_active_categories()
         parents = {c['unique_name']: c for c in cats if not c.get('primary_category')}
@@ -1116,9 +1121,53 @@ class PaperSubmissionGUI:
                     win.destroy()
             except IndexError: pass
 
+        def copy_tree_structure():
+            """复制分类树结构到剪贴板"""
+            try:
+                text_lines = []
+                
+                # 遍历所有父分类
+                for pid, p in sorted(parents.items()):
+                    # 添加父分类
+                    text_lines.append(f"{p['name']}")
+                    text_lines.append(f"Unique Name: {p['unique_name']}")
+                    if p.get('description'):
+                        text_lines.append(f"Description: {p.get('description')}")
+                    text_lines.append("")
+                    
+                    # 添加子分类
+                    child_list = children.get(pid, [])
+                    if child_list:
+                        for c in child_list:
+                            text_lines.append(f"└── {c['name']}")
+                            text_lines.append(f"     Unique Name: {c['unique_name']}")
+                            if c.get('description'):
+                                text_lines.append(f"     Description: {c.get('description')}")
+                            text_lines.append("")
+                
+                
+                # 将文本复制到剪贴板
+                result_text = "\n".join(text_lines)
+                win.clipboard_clear()
+                win.clipboard_append(result_text)
+                win.update()  # 确保剪贴板更新
+                
+                messagebox.showinfo("成功", "分类树结构已复制到剪贴板！", parent=win)
+            except Exception as e:
+                messagebox.showerror("错误", f"复制失败: {str(e)}", parent=win)
+
+        # 创建按钮框架
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        # 添加复制按钮
+        copy_button = ttk.Button(button_frame, text="📋 复制结构到剪贴板", command=copy_tree_structure)
+        copy_button.pack(side=tk.LEFT, padx=5)
+
         if target_combo:
             tree.bind("<Double-1>", on_double_click)
-            ttk.Label(win, text="双击分类以填充", foreground="blue").pack()
+            hint_label = ttk.Label(button_frame, text="双击分类以填充", foreground="blue")
+            hint_label.pack(side=tk.LEFT, padx=10)
 
     def _bind_widget_scroll_events(self, widget):
         widget.bind("<Enter>", lambda e: self._unbind_global_scroll())

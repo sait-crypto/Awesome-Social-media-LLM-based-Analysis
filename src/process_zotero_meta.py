@@ -119,7 +119,12 @@ class ZoteroProcessor:
                 notes_content.append(self._strip_html(n["note"]))
         notes = "\n".join(notes_content)
 
-        # 6. 构建Paper对象
+        # 6. 提取分类信息 (从tags字段)
+        categories_list = self._extract_categories_from_tags(item.get("tags", []))
+        # 将分类列表转换为分号分隔的字符串
+        categories_str = ";".join(categories_list) if categories_list else ""
+        
+        # 7. 构建Paper对象
         # 注意：这里创建的是基础Paper，不包含ID等数据库特定的信息
         paper = Paper(
             doi=doi,
@@ -134,7 +139,8 @@ class ZoteroProcessor:
             notes=notes,
             # 设置默认值
             show_in_readme=True,
-            status="unread" 
+            status="unread",
+            category=categories_str  # 设置分类（分号分隔的字符串）
         )
         return paper
 
@@ -147,3 +153,50 @@ class ZoteroProcessor:
         # 替换常见转义
         text = text.replace('&nbsp;', ' ').replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
         return text.strip()
+    
+    def _extract_categories_from_tags(self, tags: List[Dict[str, Any]]) -> List[str]:
+        """
+        从Zotero的tags字段中提取分类信息
+        
+        参数:
+            tags: Zotero的tags数组，格式如: [{"tag": "cat Social Media Security"}, {"tag": "cat Humor Generation;Frontier Applications"}]
+        
+        返回:
+            分类unique_name列表，如: ["Social Media Security", "Humor Generation", "Frontier Applications"]
+        """
+        categories = []
+        
+        if not tags or not isinstance(tags, list):
+            return categories
+        
+        for tag_item in tags:
+            if not isinstance(tag_item, dict):
+                continue
+            
+            # 获取tag字段的值
+            tag_value = tag_item.get("tag", "")
+            if not tag_value or not isinstance(tag_value, str):
+                continue
+            
+            # 检查是否以"cat "开头（分类标记，不区分大小写）
+            if not tag_value.lower().startswith("cat "):
+                continue
+            
+            # 移除"cat "前缀（不区分大小写）
+            category_part = tag_value[4:].strip()
+            
+            # 按分号分隔多个分类
+            cat_names = [c.strip() for c in category_part.split(";") if c.strip()]
+            
+            # 添加到结果列表
+            categories.extend(cat_names)
+        
+        # 去重并保持顺序
+        seen = set()
+        unique_categories = []
+        for cat in categories:
+            if cat not in seen:
+                seen.add(cat)
+                unique_categories.append(cat)
+        
+        return unique_categories

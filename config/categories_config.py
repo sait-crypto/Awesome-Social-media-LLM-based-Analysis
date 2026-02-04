@@ -160,6 +160,14 @@ CATEGORIES_CONFIG = {
             "enabled": True,
             "description": "[二级分类]（Perception and Classification） —  情感分析",
         },
+        {
+            "unique_name": "Sarcasm Detection",
+            "order": 4,
+            "name": "Sarcasm Detection",
+            "primary_category": "Perception and Classification",
+            "enabled": True,
+            "description": "[二级分类]（Perception and Classification） —  讽刺检测",
+        },
 
         {
             "unique_name": "Multimodal Analysis",
@@ -264,6 +272,14 @@ CATEGORIES_CONFIG = {
             "primary_category": "Understanding",
             "enabled": True,
             "description": "[二级分类]（Understanding） —  信息扩散分析",
+        },
+        {
+            "unique_name": "User Participation Prediction",
+            "order": 17,
+            "name": "User Participation Prediction",
+            "primary_category": "Understanding",
+            "enabled": True,
+            "description": "[二级分类]（Understanding） —  用户参与度预测",
         },
         {
             "unique_name": "Recommender System",
