@@ -20,8 +20,6 @@
 <img src="assets/taxonomy.png" width = "95%" alt="" align=center />
 </p>
 
-
-
 ### Key Points for Table Usage
 - <b>Paper Link</b>: Please click the paper title
 - <b>Paper Project Link</b>: Please click the GitHub icon or Project icon above the paper title
